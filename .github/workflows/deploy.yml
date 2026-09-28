@@ -74,7 +74,7 @@ jobs:
           tar -czf felipe-almeida-developer-${GITHUB_SHA::7}.tar.gz entrega
 
       - name: Publicar artefato de entrega
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: entrega-${{ github.sha }}
           path: felipe-almeida-developer-*.tar.gz
