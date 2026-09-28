@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Versão SemVer no formato vX.Y.Z'
+        required: true
+        type: string
+      prerelease:
+        description: 'Marcar como pré-release'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    name: Publicar release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validar versão
+        shell: bash
+        env:
+          VERSAO: ${{ inputs.versao }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$VERSAO" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Versão inválida. Use o formato vX.Y.Z, por exemplo v1.2.3."
+            exit 1
+          fi
+
+          if git rev-parse "$VERSAO" >/dev/null 2>&1; then
+            echo "::error::A tag $VERSAO já existe."
+            exit 1
+          fi
+
+      - name: Gerar notas em PT-BR
+        shell: bash
+        env:
+          VERSAO: ${{ inputs.versao }}
+        run: |
+          set -euo pipefail
+
+          ANTERIOR="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+
+          {
+            echo "## Alterações"
+            echo
+            if [[ -n "$ANTERIOR" ]]; then
+              git log "${ANTERIOR}..HEAD" --pretty='- %s (`%h`)'
+            else
+              git log HEAD --pretty='- %s (`%h`)'
+            fi
+            echo
+            echo "## Referência"
+            echo
+            echo "- Branch: \`main\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } > notas-release.md
+
+          cat notas-release.md
+
+      - name: Criar tag
+        shell: bash
+        env:
+          VERSAO: ${{ inputs.versao }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSAO" -m "Release $VERSAO"
+          git push origin "$VERSAO"
+
+      - name: Publicar GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSAO: ${{ inputs.versao }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          EXTRA=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            EXTRA+=(--prerelease)
+          fi
+
+          gh release create "$VERSAO" \
+            --repo "${{ github.repository }}" \
+            --title "Versão ${VERSAO#v}" \
+            --notes-file notas-release.md \
+            "${EXTRA[@]}"
