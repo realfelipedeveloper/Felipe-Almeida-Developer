@@ -13,7 +13,7 @@ Portfólio profissional com projetos, artigos, notícias, newsletter e contato �
 | Dados | PostgreSQL 16 + Prisma 6, Redis |
 | Mensageria | RabbitMQ |
 | Infra | Docker Compose, Turborepo, pnpm |
-| Engenharia | Git Flow, GitHub Actions, CodeQL, Dependabot, CI/CD |
+| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD |
 | Testes | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
 
 ## Pré-requisitos
@@ -204,10 +204,6 @@ O projeto executa CodeQL em:
 - PRs para `main` e `develop`;
 - execução semanal.
 
-Dependabot verifica semanalmente:
-
-- dependências npm/pnpm;
-- GitHub Actions.
 
 ## 10. Releases
 
