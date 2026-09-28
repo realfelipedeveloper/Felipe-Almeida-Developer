@@ -2,7 +2,7 @@
 
 Portfólio profissional com projetos, artigos, notícias, newsletter e contato — em **pt-BR, en e es**.
 
-> Estado atual: **Parte 3 concluída no código — fundação executável + SDD/harness + PostgreSQL/Prisma**. O site, a API e o worker sobem localmente; PostgreSQL, Redis, RabbitMQ e Mailpit estão definidos no Docker Compose. O repositório possui specs, ADRs, agentes, skills, PRE-TASK GATE, Adaptive Engineering Loop, schema Prisma, migração inicial, seed e portas de repositório de domínio.
+> Estado atual: **Parte 4 — API modular em execução**. A fundação, PostgreSQL/Prisma, Redis, RabbitMQ, logs estruturados, métricas, consultas públicas de perfil/projetos/artigos/notícias e worker com outbox + consumidor idempotente estão implementados. O projeto segue monólito modular, Clean Architecture/DDD e SDD.
 
 ## Stack
 
@@ -84,9 +84,12 @@ Para visualizar os dados:
 pnpm db:studio
 ```
 
-Health específico do banco após iniciar a API:
+Health checks após iniciar a API:
 
-- http://localhost:3333/api/health/database
+- API: http://localhost:3333/api/health
+- PostgreSQL: http://localhost:3333/api/health/database
+- Dependências (PostgreSQL + Redis + RabbitMQ): http://localhost:3333/api/health/dependencies
+- Métricas Prometheus (dev): http://localhost:3333/api/metrics
 
 ## 4. Rodar as aplicações
 
@@ -102,9 +105,22 @@ O comando inicia em paralelo:
 - Web: http://localhost:3000/pt-BR
 - API health: http://localhost:3333/api/health
 - Swagger: http://localhost:3333/docs
-- Worker: processo-base no terminal
+- Worker: publicador da outbox + consumidor idempotente de auditoria no terminal
 
 A rota `/` redireciona para o idioma padrão (`/pt-BR`). Também existem `/en` e `/es`.
+
+### Endpoints públicos disponíveis
+
+- `GET /api/profile?locale=pt-BR`
+- `GET /api/projects?locale=pt-BR&page=1&limit=12`
+- `GET /api/projects/:slug?locale=pt-BR`
+- `GET /api/articles?locale=pt-BR&page=1&limit=12`
+- `GET /api/articles/:slug?locale=pt-BR`
+- `GET /api/news?locale=pt-BR&page=1&limit=12`
+- `GET /api/news/:slug?locale=pt-BR`
+
+As listagens públicas retornam apenas conteúdo publicado e localizado. Projetos aceitam filtros adicionais por destaque, ciclo, tecnologia e tag.
+
 
 ## 5. Validações úteis
 
@@ -151,8 +167,8 @@ Depois altere a porta correspondente no `.env`.
 ```text
 apps/
   web/       Next.js + i18n + tema + página inicial executável
-  api/       NestJS + Swagger + Prisma + health checks
-  worker/    processo-base dos futuros consumidores RabbitMQ
+  api/       NestJS + Swagger + Prisma + Redis + RabbitMQ + logs/métricas + módulos públicos
+  worker/    outbox dispatcher + retry/DLQ + consumidor idempotente de auditoria
 packages/
   config/    TypeScript compartilhado
   contracts/ tipos e contratos compartilhados
@@ -184,19 +200,10 @@ Antes de qualquer implementação relevante, os agentes devem seguir `AGENTS.md`
 pnpm sdd:check
 ```
 
+## Fluxo Git atual
+
+O repositório já possui `main` e `develop`. O desenvolvimento deve ocorrer em branches de trabalho criadas a partir de `develop`, com commits e PRs em PT-BR.
+
 ## Próxima parte planejada
 
-**Parte 4 — API modular:** casos de uso e adapters Prisma, CRUD público/admin inicial, Redis, RabbitMQ, worker e logs estruturados.
-
-## Primeiro push (quando você decidir publicar)
-
-```bash
-git init
-git add .
-git commit -m "chore: estrutura inicial executável"
-git branch -M main
-git remote add origin https://github.com/realfelipedeveloper/Felipe-Almeida-Developer.git
-git push -u origin main
-git checkout -b develop
-git push -u origin develop
-```
+Após validar e integrar esta Parte 4, a próxima etapa é o **frontend público completo**, consumindo os endpoints reais da API, mantendo i18n, tema, SEO e LGPD.
