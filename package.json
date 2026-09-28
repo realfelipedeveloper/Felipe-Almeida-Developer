@@ -31,6 +31,7 @@
     "db:backup": "bash infra/scripts/backup.sh",
     "db:restore": "bash infra/scripts/restore.sh",
     "sdd:check": "node infra/scripts/sdd-check.mjs",
+    "github:check": "node infra/scripts/github-check.mjs",
     "db:check": "pnpm --filter @fad/api db:check"
   },
   "devDependencies": {

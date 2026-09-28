@@ -1,0 +1,106 @@
+name: PR automático para develop
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - 'chore/**'
+      - 'docs/**'
+      - 'test/**'
+      - 'refactor/**'
+      - 'perf/**'
+      - 'ci/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  abrir-pr:
+    name: Abrir ou manter PR para develop
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Abrir PR quando necessário
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          REPOSITORIO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          EXISTENTE="$(gh pr list \
+            --repo "$REPOSITORIO" \
+            --head "$BRANCH" \
+            --base develop \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "$EXISTENTE" ]]; then
+            echo "PR #$EXISTENTE já existe. Os novos commits já foram incorporados automaticamente."
+            exit 0
+          fi
+
+          TITULO="$(git log -1 --pretty=%s)"
+
+          CORPO="$(cat <<EOF
+          ## Resumo
+
+          Pull request aberto automaticamente para integrar a branch \`$BRANCH\` à \`develop\`.
+
+          ## Origem
+
+          - Branch: \`$BRANCH\`
+          - Commit: \`${GITHUB_SHA:0:7}\`
+
+          ## Validações
+
+          - [ ] CI concluído com sucesso
+          - [ ] Alterações revisadas antes do merge
+          - [ ] Nenhum segredo ou arquivo local incluído
+
+          ## Destino
+
+          Integração da branch de trabalho em \`develop\`. O merge permanece manual.
+          EOF
+          )"
+
+          URL="$(gh pr create \
+            --repo "$REPOSITORIO" \
+            --base develop \
+            --head "$BRANCH" \
+            --title "$TITULO" \
+            --body "$CORPO")"
+
+          echo "PR criado: $URL"
+
+          PREFIXO="${BRANCH%%/*}"
+          case "$PREFIXO" in
+            feature) LABEL="feature"; COR="1f6feb"; DESCRICAO="Nova funcionalidade" ;;
+            fix) LABEL="correcao"; COR="d73a4a"; DESCRICAO="Correção de defeito" ;;
+            chore) LABEL="manutencao"; COR="6e7781"; DESCRICAO="Manutenção do projeto" ;;
+            docs) LABEL="documentacao"; COR="0075ca"; DESCRICAO="Documentação" ;;
+            test) LABEL="testes"; COR="a2eeef"; DESCRICAO="Testes" ;;
+            refactor) LABEL="refatoracao"; COR="8250df"; DESCRICAO="Refatoração" ;;
+            perf) LABEL="performance"; COR="fbca04"; DESCRICAO="Performance" ;;
+            ci) LABEL="ci-cd"; COR="0e8a16"; DESCRICAO="Integração e entrega contínuas" ;;
+            *) exit 0 ;;
+          esac
+
+          gh label create "$LABEL" \
+            --repo "$REPOSITORIO" \
+            --color "$COR" \
+            --description "$DESCRICAO" \
+            --force
+
+          NUMERO="$(gh pr list --repo "$REPOSITORIO" --head "$BRANCH" --base develop --state open --json number --jq '.[0].number')"
+          gh pr edit "$NUMERO" --repo "$REPOSITORIO" --add-label "$LABEL"

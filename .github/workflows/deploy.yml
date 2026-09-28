@@ -1,0 +1,88 @@
+name: CD - Entrega contínua
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-producao
+  cancel-in-progress: false
+
+jobs:
+  preparar-entrega:
+    name: Preparar artefato de entrega
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Baixar main validada
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Habilitar Corepack e pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Gerar Prisma Client
+        run: pnpm db:generate
+
+      - name: Gerar builds de produção
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3333' }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+        run: pnpm build
+
+      - name: Empacotar artefatos
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p entrega
+
+          cp -R apps/api/dist entrega/api
+          cp -R apps/worker/dist entrega/worker
+          mkdir -p entrega/web
+          cp -R apps/web/.next entrega/web/.next
+          cp -R apps/web/public entrega/web/public
+
+          cp package.json entrega/
+          cp pnpm-lock.yaml entrega/
+          cp pnpm-workspace.yaml entrega/
+
+          tar -czf felipe-almeida-developer-${GITHUB_SHA::7}.tar.gz entrega
+
+      - name: Publicar artefato de entrega
+        uses: actions/upload-artifact@v4
+        with:
+          name: entrega-${{ github.sha }}
+          path: felipe-almeida-developer-*.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Informar estado do deploy
+        shell: bash
+        run: |
+          echo "Artefato de entrega gerado com sucesso."
+          echo "A implantação automática no provedor de produção será ativada quando o destino de hospedagem for definido."

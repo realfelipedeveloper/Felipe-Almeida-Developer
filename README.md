@@ -2,7 +2,7 @@
 
 Portfólio profissional com projetos, artigos, notícias, newsletter e contato — em **pt-BR, en e es**.
 
-> Estado atual: **Parte 4 — API modular em execução**. A fundação, PostgreSQL/Prisma, Redis, RabbitMQ, logs estruturados, métricas, consultas públicas de perfil/projetos/artigos/notícias e worker com outbox + consumidor idempotente estão implementados. O projeto segue monólito modular, Clean Architecture/DDD e SDD.
+> Estado atual: fundação, PostgreSQL/Prisma, API modular, Redis, RabbitMQ, worker e **infraestrutura de engenharia GitHub/CI-CD** implementados. A antiga Parte 09 foi antecipada antes do frontend público para que as próximas entregas já passem por Git Flow e quality gates automatizados.
 
 ## Stack
 
@@ -13,6 +13,7 @@ Portfólio profissional com projetos, artigos, notícias, newsletter e contato �
 | Dados | PostgreSQL 16 + Prisma 6, Redis |
 | Mensageria | RabbitMQ |
 | Infra | Docker Compose, Turborepo, pnpm |
+| Engenharia | Git Flow, GitHub Actions, CodeQL, Dependabot, CI/CD |
 | Testes | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
 
 ## Pré-requisitos
@@ -44,7 +45,7 @@ cp .env.example .env
 pnpm install
 ```
 
-Para esta primeira execução, os valores padrão do `.env.example` são suficientes para a infraestrutura local. Antes de autenticação/deploy, os segredos deverão ser trocados.
+Para a execução local, os valores padrão do `.env.example` são suficientes para a infraestrutura. Antes de autenticação/deploy, os segredos deverão ser trocados.
 
 ## 2. Subir a infraestrutura
 
@@ -61,22 +62,13 @@ Isso sobe:
 - Mailpit SMTP: `localhost:1025`
 - Mailpit UI: http://localhost:8025
 
-Verifique os containers:
-
-```bash
-docker compose --env-file .env -f infra/docker/docker-compose.yml ps
-```
-
-
 ## 3. Preparar o banco
 
-Depois de `pnpm infra:up`, execute:
+Depois de `pnpm infra:up`:
 
 ```bash
 pnpm db:setup
 ```
-
-Esse comando gera o Prisma Client, valida o schema, aplica a migração inicial, executa o seed e roda um smoke test.
 
 Para visualizar os dados:
 
@@ -84,30 +76,24 @@ Para visualizar os dados:
 pnpm db:studio
 ```
 
-Health checks após iniciar a API:
+Health checks:
 
 - API: http://localhost:3333/api/health
-- PostgreSQL: http://localhost:3333/api/health/database
-- Dependências (PostgreSQL + Redis + RabbitMQ): http://localhost:3333/api/health/dependencies
-- Métricas Prometheus (dev): http://localhost:3333/api/metrics
+- Dependências: http://localhost:3333/api/health/dependencies
+- Métricas Prometheus: http://localhost:3333/api/metrics
 
 ## 4. Rodar as aplicações
-
-
-Em outro terminal, na raiz:
 
 ```bash
 pnpm dev
 ```
 
-O comando inicia em paralelo:
+O comando inicia:
 
 - Web: http://localhost:3000/pt-BR
-- API health: http://localhost:3333/api/health
+- API: http://localhost:3333/api
 - Swagger: http://localhost:3333/docs
-- Worker: publicador da outbox + consumidor idempotente de auditoria no terminal
-
-A rota `/` redireciona para o idioma padrão (`/pt-BR`). Também existem `/en` e `/es`.
+- Worker: outbox + consumidor RabbitMQ
 
 ### Endpoints públicos disponíveis
 
@@ -119,91 +105,155 @@ A rota `/` redireciona para o idioma padrão (`/pt-BR`). Também existem `/en` e
 - `GET /api/news?locale=pt-BR&page=1&limit=12`
 - `GET /api/news/:slug?locale=pt-BR`
 
-As listagens públicas retornam apenas conteúdo publicado e localizado. Projetos aceitam filtros adicionais por destaque, ciclo, tecnologia e tag.
-
-
-## 5. Validações úteis
-
-Valide primeiro o harness SDD:
+## 5. Quality gates locais
 
 ```bash
 pnpm sdd:check
-```
-
-Depois rode os quality gates técnicos:
-
-```bash
+pnpm github:check
+pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
 ```
 
-## 6. Encerrar
+O `sdd:check` é exclusivamente local porque os artefatos SDD/harness não são versionados.
 
-Pare `pnpm dev` com `Ctrl+C` e depois:
+## 6. Git Flow
+
+Branches permanentes:
+
+- `main`: último estado estável promovido;
+- `develop`: integração das entregas.
+
+Branches de trabalho:
+
+- `feature/*`
+- `fix/*`
+- `hotfix/*`
+- `chore/*`
+- `docs/*`
+- `test/*`
+- `refactor/*`
+- `perf/*`
+- `ci/*`
+
+Fluxo normal:
+
+```text
+branch de trabalho
+        ↓
+PR automático
+     develop
+        ↓
+CI + merge manual
+        ↓
+PR automático
+       main
+        ↓
+CI + merge manual
+```
+
+Hotfix:
+
+```text
+hotfix/*
+   ↓
+PR automático
+ main
+   ↓
+merge manual
+   ↓
+retrointegração automática
+   ↓
+develop
+```
+
+Commits, títulos e descrições de PR devem permanecer em PT-BR, mantendo os tipos do Conventional Commits.
+
+## 7. GitHub Actions / CI
+
+O workflow `CI` executa:
+
+- instalação com lockfile congelado;
+- validação da política de PR;
+- validação da configuração GitHub;
+- Prisma Client;
+- Prisma validate;
+- lint;
+- typecheck;
+- testes;
+- build.
+
+O CI roda em `main`, `develop`, branches de trabalho e PRs para `main`/`develop`.
+
+## 8. Pull requests automáticos
+
+As automações abrem:
+
+- branch de trabalho → `develop`;
+- `develop` → `main`;
+- `hotfix/*` → `main`.
+
+O PR é aberto automaticamente, mas **o merge permanece manual**.
+
+## 9. Segurança
+
+O projeto executa CodeQL em:
+
+- push para `main` e `develop`;
+- PRs para `main` e `develop`;
+- execução semanal.
+
+Dependabot verifica semanalmente:
+
+- dependências npm/pnpm;
+- GitHub Actions.
+
+## 10. Releases
+
+O workflow `Release` é manual e exige SemVer:
+
+```text
+vX.Y.Z
+```
+
+Ele gera notas em PT-BR a partir dos commits, cria a tag e publica uma GitHub Release.
+
+## 11. CD
+
+Após um CI bem-sucedido na `main`, o workflow de entrega contínua:
+
+1. recompila a versão validada;
+2. gera um pacote dos artefatos de web, API e worker;
+3. publica o artefato no GitHub Actions com retenção de 14 dias.
+
+A implantação automática em infraestrutura externa será conectada quando o provedor de produção for definido. O pipeline de entrega já fica ativo sem simular um deploy que ainda não possui destino real.
+
+## 12. Proteções recomendadas no GitHub
+
+Após os workflows executarem ao menos uma vez:
+
+- proteger `main` e `develop`;
+- exigir PR antes do merge;
+- exigir o check `Verificações obrigatórias`;
+- bloquear force push;
+- bloquear exclusão das branches permanentes;
+- manter squash merge como estratégia de merge;
+- não exigir aprovação externa enquanto o repositório tiver apenas um mantenedor.
+
+Também é necessário habilitar em **Settings → Actions → General**:
+
+- `Read and write permissions`;
+- `Allow GitHub Actions to create and approve pull requests`.
+
+## 13. Encerrar ambiente local
+
+Pare `pnpm dev` com `Ctrl+C` e execute:
 
 ```bash
 pnpm infra:down
 ```
 
-## Se alguma porta estiver ocupada
+## Próxima parte
 
-Antes de iniciar as aplicações:
-
-```bash
-pnpm check:ports --apps-only
-```
-
-Para receber sugestões de portas alternativas:
-
-```bash
-node infra/scripts/check-ports.mjs --suggest
-```
-
-Depois altere a porta correspondente no `.env`.
-
-## Estrutura atual
-
-```text
-apps/
-  web/       Next.js + i18n + tema + página inicial executável
-  api/       NestJS + Swagger + Prisma + Redis + RabbitMQ + logs/métricas + módulos públicos
-  worker/    outbox dispatcher + retry/DLQ + consumidor idempotente de auditoria
-packages/
-  config/    TypeScript compartilhado
-  contracts/ tipos e contratos compartilhados
-infra/
-  docker/    PostgreSQL, Redis, RabbitMQ e Mailpit
-  scripts/   portas, backup, restore e validações
-apps/api/prisma/
-  schema.prisma  modelo relacional
-  migrations/    migrações versionadas
-  seed.cjs       seed idempotente
-docs/
-  specs/     especificações SDD e critérios de aceite
-  adr/       decisões de arquitetura
-  arquitetura.md  visão arquitetural
-  gitflow.md      fluxo de branches/PRs
-  runbook.md      operação local
-.agents/
-  harness/   PRE-TASK GATE + Adaptive Engineering Loop
-  skills/    skills reutilizáveis
-  *.md       agentes especializados
-AGENTS.md    regras operacionais do repositório
-```
-
-## SDD / Harness
-
-Antes de qualquer implementação relevante, os agentes devem seguir `AGENTS.md`, identificar a spec e os ADRs relacionados e executar o PRE-TASK GATE. A estrutura pode ser validada com:
-
-```bash
-pnpm sdd:check
-```
-
-## Fluxo Git atual
-
-O repositório já possui `main` e `develop`. O desenvolvimento deve ocorrer em branches de trabalho criadas a partir de `develop`, com commits e PRs em PT-BR.
-
-## Próxima parte planejada
-
-Após validar e integrar esta Parte 4, a próxima etapa é o **frontend público completo**, consumindo os endpoints reais da API, mantendo i18n, tema, SEO e LGPD.
+A próxima etapa é a **Parte 05 — frontend público completo**, já desenvolvida sob os quality gates e automações de GitHub implantados nesta etapa.

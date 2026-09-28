@@ -1,0 +1,17 @@
+# Normaliza arquivos de texto para LF no repositório.
+* text=auto eol=lf
+
+# Scripts nativos do Windows permanecem com CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Arquivos binários nunca sofrem conversão de fim de linha.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
