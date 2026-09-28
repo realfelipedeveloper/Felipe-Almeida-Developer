@@ -1,32 +1,227 @@
 {
+  "meta": {
+    "siteDescription": "Felipe Almeida's professional portfolio — Software Engineering, Full Stack development, architecture, security and system modernization.",
+    "homeTitle": "Software Engineer and Full Stack Developer",
+    "aboutTitle": "About",
+    "projectsTitle": "Projects",
+    "articlesTitle": "Articles",
+    "newsTitle": "News",
+    "contactTitle": "Contact",
+    "newsletterTitle": "Newsletter",
+    "privacyTitle": "Privacy",
+    "cookiesTitle": "Cookies"
+  },
   "nav": {
     "home": "Home",
     "about": "About",
     "projects": "Projects",
     "articles": "Articles",
     "news": "News",
-    "contact": "Contact"
+    "contact": "Contact",
+    "newsletter": "Newsletter",
+    "menu": "Menu"
   },
   "hero": {
     "eyebrow": "Software Engineering • Full Stack",
-    "title": "Felipe Almeida Developer",
-    "description": "Building, modernizing and evolving web applications with a focus on architecture, quality, security and products that work in the real world.",
+    "fallbackTitle": "Felipe Almeida",
+    "fallbackHeadline": "Software Engineer and Full Stack Developer",
+    "fallbackSummary": "Building, maintaining and modernizing web applications and enterprise systems with a focus on architecture, security, quality and sustainable evolution.",
     "projects": "View projects",
-    "contact": "Get in touch"
+    "contact": "Get in touch",
+    "about": "View background"
   },
-  "status": {
-    "title": "Runnable foundation completed",
-    "description": "Next.js, NestJS, i18n, Docker and the base infrastructure can now run locally. Business modules will be added in the next parts."
+  "availability": {
+    "available": "Available for new projects and opportunities",
+    "unavailable": "Professional schedule currently unavailable"
   },
-  "sections": {
-    "about": "About",
-    "aboutText": "Software Engineer and Full Stack Developer experienced in building, maintaining and modernizing web systems and enterprise applications.",
-    "projects": "Projects",
-    "projectsText": "The complete catalog with filters, tags, stacks, links and gallery will be connected to PostgreSQL in the next stages.",
-    "articles": "Articles",
-    "articlesText": "Area prepared for technical content about software development, architecture, security and career.",
-    "newsletter": "Newsletter",
-    "newsletterText": "Double opt-in and asynchronous RabbitMQ processing will be enabled in the messaging stage."
+  "home": {
+    "projectsEyebrow": "Work in practice",
+    "projectsTitle": "Featured projects",
+    "projectsText": "Solutions built with technical decisions driven by the problem, not by trends.",
+    "articlesEyebrow": "Engineering in words",
+    "articlesTitle": "Recent articles",
+    "articlesText": "Architecture, development, security, career and the reality of building software.",
+    "newsEyebrow": "Tech radar",
+    "newsTitle": "News and updates",
+    "newsText": "Selected and contextualized content for software professionals.",
+    "aboutTitle": "Software has to survive the real world.",
+    "aboutText": "My work combines evolving existing systems, building new applications, integrations and architecture decisions focused on maintainability, security and business.",
+    "newsletterTitle": "Useful content, without noise.",
+    "newsletterText": "A newsletter about software engineering, architecture, AI-assisted development and career.",
+    "newsletterCta": "Explore the newsletter",
+    "seeAll": "View all",
+    "emptyProjects": "No projects published in this language yet.",
+    "emptyArticles": "No articles published in this language yet.",
+    "emptyNews": "No news published in this language yet."
   },
-  "footer": "Felipe Almeida Developer. Built with Next.js + NestJS."
+  "about": {
+    "eyebrow": "About",
+    "title": "Software engineering beyond implementation.",
+    "intro": "Experience with web systems and enterprise applications across maintenance, modernization, integrations, architecture and Full Stack development.",
+    "fallbackBio": "Throughout my professional path I have helped build, maintain and evolve production systems, including legacy applications with established business rules and modern projects based on APIs and reactive interfaces. The focus remains on understanding the problem before choosing the technology.",
+    "principlesTitle": "How I work",
+    "principles": {
+      "architecture": {
+        "title": "Purposeful architecture",
+        "text": "Complexity must be justified. Modular monoliths, queues, cache or separate services enter when the problem requires them."
+      },
+      "security": {
+        "title": "Security by design",
+        "text": "Validation, authorization, rate limiting, observability and secret management are part of the solution, not final polish."
+      },
+      "maintenance": {
+        "title": "Code built to evolve",
+        "text": "Clean Code, SOLID, tests, useful documentation and explicit decisions lower the cost of future changes."
+      }
+    },
+    "galleryTitle": "Beyond code",
+    "galleryText": "A few personal records that give the portfolio its own identity."
+  },
+  "projects": {
+    "eyebrow": "Projects",
+    "title": "Real problems, explicit technical decisions.",
+    "intro": "Browse published projects, filter by technology, tag, lifecycle or featured status and open each case for details.",
+    "filterTechnology": "Technology",
+    "filterTag": "Tag",
+    "filterLifecycle": "Lifecycle",
+    "filterFeatured": "Featured only",
+    "filterAll": "All",
+    "filterApply": "Apply filters",
+    "filterClear": "Clear",
+    "repository": "Repository",
+    "demo": "Demo",
+    "technologies": "Technologies",
+    "tags": "Tags",
+    "featured": "Featured",
+    "started": "Started",
+    "ended": "Ended",
+    "challenge": "Challenge",
+    "solution": "Solution",
+    "results": "Results",
+    "gallery": "Gallery",
+    "empty": "No project matches the current filters.",
+    "lifecycle": {
+      "PLANNED": "Planned",
+      "IN_PROGRESS": "In progress",
+      "COMPLETED": "Completed",
+      "MAINTENANCE": "Maintenance",
+      "ARCHIVED": "Archived"
+    }
+  },
+  "articles": {
+    "eyebrow": "Articles",
+    "title": "Notes from someone who builds, breaks, fixes and evolves software.",
+    "intro": "Technical and professional content on software engineering, architecture, security, AI for development and career.",
+    "filterTag": "Filter by tag",
+    "filterApply": "Filter",
+    "filterClear": "Clear",
+    "readingTime": "{minutes} min read",
+    "publishedAt": "Published on {date}",
+    "empty": "No article published with this filter.",
+    "back": "Back to articles"
+  },
+  "news": {
+    "eyebrow": "News",
+    "title": "What is worth following in the software ecosystem.",
+    "intro": "Technical updates with context for development, architecture, security, DevOps and artificial intelligence.",
+    "filterTag": "Filter by tag",
+    "filterApply": "Filter",
+    "filterClear": "Clear",
+    "publishedAt": "Published on {date}",
+    "empty": "No news published with this filter.",
+    "back": "Back to news"
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "Have a system to build, evolve or modernize?",
+    "intro": "Use the available professional channels or find the form ready for the messaging integration in the next stage.",
+    "name": "Name",
+    "email": "Email",
+    "subject": "Subject",
+    "message": "Message",
+    "send": "Send message",
+    "pending": "The visual form is ready. Email/WhatsApp delivery and anti-spam protection arrive in Part 07.",
+    "channels": "Professional channels",
+    "noChannels": "Public channels will appear once configured in the profile."
+  },
+  "newsletter": {
+    "eyebrow": "Newsletter",
+    "title": "Software engineering without clickbait.",
+    "intro": "Articles, architecture decisions, security, AI-assisted development and career directly in your inbox.",
+    "name": "Name",
+    "email": "Email",
+    "subscribe": "Subscribe",
+    "pending": "The interface is ready. Double opt-in, unsubscribe and asynchronous delivery will be connected in Part 07.",
+    "privacy": "By subscribing, you will agree to the Privacy Policy and may unsubscribe at any time."
+  },
+  "privacy": {
+    "eyebrow": "Privacy",
+    "title": "Privacy Policy",
+    "intro": "This page describes the portfolio's privacy baseline. Collection flows will be updated when contact, newsletter and analytics are enabled.",
+    "sections": [
+      {
+        "title": "Data collected",
+        "text": "The site may process data voluntarily provided through contact and newsletter forms, as well as technical data strictly required for security and operation."
+      },
+      {
+        "title": "Purposes",
+        "text": "Data will be used to answer contacts, operate the newsletter, protect the service from abuse and measure usage only after consent when applicable."
+      },
+      {
+        "title": "Rights",
+        "text": "Data subjects may request access, correction, export or deletion when applicable. Automated flows will be connected in the corresponding backend stage."
+      },
+      {
+        "title": "Retention and security",
+        "text": "Data will be retained only for the period required by the stated purposes and protected with technical and operational controls appropriate to the risk."
+      }
+    ]
+  },
+  "cookies": {
+    "eyebrow": "Privacy",
+    "title": "Cookie Policy",
+    "intro": "The site starts with essential preferences only. Analytics stays disabled until explicit consent.",
+    "sections": [
+      {
+        "title": "Essential storage",
+        "text": "Preferences such as theme and consent may be stored locally to preserve your selected experience."
+      },
+      {
+        "title": "Analytics",
+        "text": "Analytics tools may only be loaded after consent when configured."
+      },
+      {
+        "title": "Change preference",
+        "text": "You can clear site data in your browser to reset your choices. A full preference center will be connected with the analytics layer."
+      }
+    ]
+  },
+  "cookiesBanner": {
+    "title": "Privacy under your control",
+    "text": "We use essential storage by default. Analytics is not loaded without consent.",
+    "accept": "Accept analytics",
+    "essential": "Essential only",
+    "policy": "Cookie Policy"
+  },
+  "theme": {
+    "light": "Enable light theme",
+    "dark": "Enable dark theme"
+  },
+  "common": {
+    "readMore": "Read more",
+    "details": "View details",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {total}",
+    "backHome": "Back home",
+    "notFound": "Content not found.",
+    "apiUnavailable": "Content temporarily unavailable. Please try again shortly."
+  },
+  "footer": {
+    "tagline": "Software Engineering • Full Stack",
+    "rights": "All rights reserved.",
+    "privacy": "Privacy",
+    "cookies": "Cookies",
+    "rss": "RSS"
+  }
 }
