@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 export function ThemeToggle() {
+  const t = useTranslations('theme');
   const [dark, setDark] = useState(true);
 
   useEffect(() => {
@@ -19,15 +21,17 @@ export function ThemeToggle() {
     setDark(nextDark);
   }
 
+  const label = dark ? t('light') : t('dark');
+
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      className="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
-      aria-label={dark ? 'Ativar tema claro' : 'Ativar tema escuro'}
-      title={dark ? 'Tema claro' : 'Tema escuro'}
+      className="grid h-9 w-9 place-items-center rounded-full border border-slate-300 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+      aria-label={label}
+      title={label}
     >
-      {dark ? '☀️' : '🌙'}
+      <span aria-hidden="true">{dark ? '☀' : '☾'}</span>
     </button>
   );
 }

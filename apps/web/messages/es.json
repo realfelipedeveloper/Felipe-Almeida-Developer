@@ -1,32 +1,227 @@
 {
+  "meta": {
+    "siteDescription": "Portafolio profesional de Felipe Almeida — Ingeniería de Software, desarrollo Full Stack, arquitectura, seguridad y modernización de sistemas.",
+    "homeTitle": "Ingeniero de Software y Desarrollador Full Stack",
+    "aboutTitle": "Sobre mí",
+    "projectsTitle": "Proyectos",
+    "articlesTitle": "Artículos",
+    "newsTitle": "Noticias",
+    "contactTitle": "Contacto",
+    "newsletterTitle": "Newsletter",
+    "privacyTitle": "Privacidad",
+    "cookiesTitle": "Cookies"
+  },
   "nav": {
     "home": "Inicio",
     "about": "Sobre mí",
     "projects": "Proyectos",
     "articles": "Artículos",
     "news": "Noticias",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "newsletter": "Newsletter",
+    "menu": "Menú"
   },
   "hero": {
     "eyebrow": "Ingeniería de Software • Full Stack",
-    "title": "Felipe Almeida Developer",
-    "description": "Desarrollo, modernización y evolución de aplicaciones web con foco en arquitectura, calidad, seguridad y productos que funcionan en el mundo real.",
+    "fallbackTitle": "Felipe Almeida",
+    "fallbackHeadline": "Ingeniero de Software y Desarrollador Full Stack",
+    "fallbackSummary": "Construcción, mantenimiento y modernización de aplicaciones web y sistemas corporativos con foco en arquitectura, seguridad, calidad y evolución sostenible.",
     "projects": "Ver proyectos",
-    "contact": "Contactar"
+    "contact": "Contactar",
+    "about": "Conocer trayectoria"
   },
-  "status": {
-    "title": "Fundación ejecutable finalizada",
-    "description": "Next.js, NestJS, i18n, Docker y la infraestructura base ya pueden ejecutarse localmente. Los módulos de negocio llegan en las próximas partes."
+  "availability": {
+    "available": "Disponible para nuevos proyectos y oportunidades",
+    "unavailable": "Agenda profesional actualmente no disponible"
   },
-  "sections": {
-    "about": "Sobre mí",
-    "aboutText": "Ingeniero de Software y Desarrollador Full Stack con experiencia en construcción, mantenimiento y modernización de sistemas web y aplicaciones corporativas.",
-    "projects": "Proyectos",
-    "projectsText": "El catálogo completo con filtros, etiquetas, stacks, enlaces y galería se conectará a PostgreSQL en las próximas etapas.",
-    "articles": "Artículos",
-    "articlesText": "Área preparada para contenido técnico sobre desarrollo de software, arquitectura, seguridad y carrera.",
-    "newsletter": "Newsletter",
-    "newsletterText": "La suscripción con double opt-in y procesamiento asíncrono con RabbitMQ se activará en la etapa de mensajería."
+  "home": {
+    "projectsEyebrow": "Trabajo en práctica",
+    "projectsTitle": "Proyectos destacados",
+    "projectsText": "Soluciones construidas con decisiones técnicas guiadas por el problema, no por la moda.",
+    "articlesEyebrow": "Ingeniería en palabras",
+    "articlesTitle": "Artículos recientes",
+    "articlesText": "Arquitectura, desarrollo, seguridad, carrera y los bastidores de construir software.",
+    "newsEyebrow": "Radar técnico",
+    "newsTitle": "Noticias y actualizaciones",
+    "newsText": "Contenido seleccionado y contextualizado para profesionales de software.",
+    "aboutTitle": "El software tiene que sobrevivir al mundo real.",
+    "aboutText": "Mi trabajo combina evolución de sistemas existentes, construcción de nuevas aplicaciones, integraciones y decisiones de arquitectura con foco en mantenibilidad, seguridad y negocio.",
+    "newsletterTitle": "Contenido útil, sin ruido.",
+    "newsletterText": "Newsletter sobre ingeniería de software, arquitectura, IA aplicada al desarrollo y carrera.",
+    "newsletterCta": "Conocer la newsletter",
+    "seeAll": "Ver todos",
+    "emptyProjects": "Todavía no hay proyectos publicados en este idioma.",
+    "emptyArticles": "Todavía no hay artículos publicados en este idioma.",
+    "emptyNews": "Todavía no hay noticias publicadas en este idioma."
   },
-  "footer": "Felipe Almeida Developer. Construido con Next.js + NestJS."
+  "about": {
+    "eyebrow": "Sobre mí",
+    "title": "Ingeniería de software más allá de la implementación.",
+    "intro": "Experiencia con sistemas web y aplicaciones corporativas en mantenimiento, modernización, integraciones, arquitectura y desarrollo Full Stack.",
+    "fallbackBio": "A lo largo de mi trayectoria profesional participé en la construcción, mantenimiento y evolución de sistemas en producción, incluyendo aplicaciones legadas con reglas de negocio consolidadas y proyectos modernos basados en APIs e interfaces reactivas. El foco sigue siendo entender el problema antes de elegir la tecnología.",
+    "principlesTitle": "Cómo trabajo",
+    "principles": {
+      "architecture": {
+        "title": "Arquitectura con propósito",
+        "text": "La complejidad debe estar justificada. Monolito modular, colas, caché o servicios separados entran cuando el problema lo requiere."
+      },
+      "security": {
+        "title": "Seguridad desde el diseño",
+        "text": "Validación, autorización, rate limiting, observabilidad y gestión de secretos forman parte de la solución."
+      },
+      "maintenance": {
+        "title": "Código preparado para evolucionar",
+        "text": "Clean Code, SOLID, pruebas, documentación útil y decisiones explícitas reducen el coste de los próximos cambios."
+      }
+    },
+    "galleryTitle": "Más allá del código",
+    "galleryText": "Algunos registros personales que ayudan a darle identidad propia al portafolio."
+  },
+  "projects": {
+    "eyebrow": "Proyectos",
+    "title": "Problemas reales, decisiones técnicas explícitas.",
+    "intro": "Explora proyectos publicados, filtra por tecnología, etiqueta, ciclo de vida o destaque y abre cada caso para ver los detalles.",
+    "filterTechnology": "Tecnología",
+    "filterTag": "Etiqueta",
+    "filterLifecycle": "Ciclo",
+    "filterFeatured": "Solo destacados",
+    "filterAll": "Todos",
+    "filterApply": "Aplicar filtros",
+    "filterClear": "Limpiar",
+    "repository": "Repositorio",
+    "demo": "Demostración",
+    "technologies": "Tecnologías",
+    "tags": "Etiquetas",
+    "featured": "Destacado",
+    "started": "Inicio",
+    "ended": "Conclusión",
+    "challenge": "Desafío",
+    "solution": "Solución",
+    "results": "Resultados",
+    "gallery": "Galería",
+    "empty": "Ningún proyecto coincide con los filtros actuales.",
+    "lifecycle": {
+      "PLANNED": "Planificado",
+      "IN_PROGRESS": "En desarrollo",
+      "COMPLETED": "Completado",
+      "MAINTENANCE": "En mantenimiento",
+      "ARCHIVED": "Archivado"
+    }
+  },
+  "articles": {
+    "eyebrow": "Artículos",
+    "title": "Notas de quien construye, rompe, corrige y evoluciona software.",
+    "intro": "Contenido técnico y profesional sobre ingeniería de software, arquitectura, seguridad, IA para desarrollo y carrera.",
+    "filterTag": "Filtrar por etiqueta",
+    "filterApply": "Filtrar",
+    "filterClear": "Limpiar",
+    "readingTime": "{minutes} min de lectura",
+    "publishedAt": "Publicado el {date}",
+    "empty": "Ningún artículo publicado con este filtro.",
+    "back": "Volver a artículos"
+  },
+  "news": {
+    "eyebrow": "Noticias",
+    "title": "Lo que vale la pena seguir en el ecosistema de software.",
+    "intro": "Actualizaciones técnicas con contexto para desarrollo, arquitectura, seguridad, DevOps e inteligencia artificial.",
+    "filterTag": "Filtrar por etiqueta",
+    "filterApply": "Filtrar",
+    "filterClear": "Limpiar",
+    "publishedAt": "Publicado el {date}",
+    "empty": "Ninguna noticia publicada con este filtro.",
+    "back": "Volver a noticias"
+  },
+  "contact": {
+    "eyebrow": "Contacto",
+    "title": "¿Tienes un sistema para construir, evolucionar o modernizar?",
+    "intro": "Usa los canales profesionales disponibles o encuentra el formulario preparado para la integración de mensajería de la próxima etapa.",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "subject": "Asunto",
+    "message": "Mensaje",
+    "send": "Enviar mensaje",
+    "pending": "El formulario visual ya está listo. El envío por e-mail/WhatsApp y la protección antispam llegan en la Parte 07.",
+    "channels": "Canales profesionales",
+    "noChannels": "Los canales públicos aparecerán cuando estén configurados en el perfil."
+  },
+  "newsletter": {
+    "eyebrow": "Newsletter",
+    "title": "Ingeniería de software sin clickbait.",
+    "intro": "Artículos, decisiones de arquitectura, seguridad, IA aplicada al desarrollo y carrera directamente en tu bandeja de entrada.",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "subscribe": "Quiero recibir",
+    "pending": "La interfaz está lista. Double opt-in, baja y envío asíncrono se conectarán en la Parte 07.",
+    "privacy": "Al suscribirte, aceptarás la Política de Privacidad y podrás cancelar en cualquier momento."
+  },
+  "privacy": {
+    "eyebrow": "Privacidad",
+    "title": "Política de Privacidad",
+    "intro": "Esta página describe la base de privacidad del portafolio. Los flujos de recolección serán actualizados al activar contacto, newsletter y analytics.",
+    "sections": [
+      {
+        "title": "Datos recopilados",
+        "text": "El sitio podrá tratar datos proporcionados voluntariamente en formularios de contacto y newsletter, además de datos técnicos estrictamente necesarios para seguridad y operación."
+      },
+      {
+        "title": "Finalidades",
+        "text": "Los datos serán usados para responder contactos, operar la newsletter, proteger el servicio contra abuso y medir uso solo después del consentimiento cuando corresponda."
+      },
+      {
+        "title": "Derechos",
+        "text": "El titular podrá solicitar acceso, corrección, exportación o eliminación cuando corresponda. Los flujos automatizados se conectarán en la etapa correspondiente del backend."
+      },
+      {
+        "title": "Retención y seguridad",
+        "text": "Los datos se conservarán solo durante el tiempo necesario para las finalidades declaradas y serán protegidos con controles técnicos y operativos adecuados al riesgo."
+      }
+    ]
+  },
+  "cookies": {
+    "eyebrow": "Privacidad",
+    "title": "Política de Cookies",
+    "intro": "El sitio comienza solo con preferencias esenciales. Analytics permanece desactivado hasta consentimiento explícito.",
+    "sections": [
+      {
+        "title": "Almacenamiento esencial",
+        "text": "Preferencias como tema y consentimiento pueden guardarse localmente para mantener la experiencia elegida."
+      },
+      {
+        "title": "Analytics",
+        "text": "Las herramientas de analytics solo podrán cargarse después del consentimiento cuando estén configuradas."
+      },
+      {
+        "title": "Cambiar preferencia",
+        "text": "Puedes limpiar los datos del sitio en el navegador para restablecer tus elecciones. Un centro completo de preferencias se conectará junto con la capa de analytics."
+      }
+    ]
+  },
+  "cookiesBanner": {
+    "title": "Privacidad bajo tu control",
+    "text": "Usamos almacenamiento esencial por defecto. Analytics no se carga sin consentimiento.",
+    "accept": "Aceptar analytics",
+    "essential": "Solo esenciales",
+    "policy": "Política de Cookies"
+  },
+  "theme": {
+    "light": "Activar tema claro",
+    "dark": "Activar tema oscuro"
+  },
+  "common": {
+    "readMore": "Leer más",
+    "details": "Ver detalles",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {page} de {total}",
+    "backHome": "Volver al inicio",
+    "notFound": "Contenido no encontrado.",
+    "apiUnavailable": "Contenido temporalmente no disponible. Inténtalo de nuevo en unos instantes."
+  },
+  "footer": {
+    "tagline": "Ingeniería de Software • Full Stack",
+    "rights": "Todos los derechos reservados.",
+    "privacy": "Privacidad",
+    "cookies": "Cookies",
+    "rss": "RSS"
+  }
 }
