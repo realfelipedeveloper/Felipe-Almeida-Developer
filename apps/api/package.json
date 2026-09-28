@@ -1,0 +1,46 @@
+{
+  "name": "@fad/api",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../../infra/scripts/run-with-env.mjs nest start --watch",
+    "build": "nest build",
+    "start": "node ../../infra/scripts/run-with-env.mjs node dist/main.js",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --passWithNoTests",
+    "db:generate": "node ../../infra/scripts/run-with-env.mjs prisma generate --schema prisma/schema.prisma",
+    "db:validate": "node ../../infra/scripts/run-with-env.mjs prisma validate --schema prisma/schema.prisma",
+    "db:migrate:dev": "node ../../infra/scripts/run-with-env.mjs prisma migrate dev --schema prisma/schema.prisma",
+    "db:migrate:deploy": "node ../../infra/scripts/run-with-env.mjs prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "node ../../infra/scripts/run-with-env.mjs prisma db seed --schema prisma/schema.prisma",
+    "db:studio": "node ../../infra/scripts/run-with-env.mjs prisma studio --schema prisma/schema.prisma",
+    "db:check": "node ../../infra/scripts/run-with-env.mjs node prisma/check.cjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/swagger": "^11.2.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "@prisma/client": "6.19.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/testing": "^11.1.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "prisma": "6.19.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.cjs"
+  }
+}

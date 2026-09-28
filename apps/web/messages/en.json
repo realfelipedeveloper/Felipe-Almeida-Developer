@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "projects": "Projects",
+    "articles": "Articles",
+    "news": "News",
+    "contact": "Contact"
+  },
+  "hero": {
+    "eyebrow": "Software Engineering • Full Stack",
+    "title": "Felipe Almeida Developer",
+    "description": "Building, modernizing and evolving web applications with a focus on architecture, quality, security and products that work in the real world.",
+    "projects": "View projects",
+    "contact": "Get in touch"
+  },
+  "status": {
+    "title": "Runnable foundation completed",
+    "description": "Next.js, NestJS, i18n, Docker and the base infrastructure can now run locally. Business modules will be added in the next parts."
+  },
+  "sections": {
+    "about": "About",
+    "aboutText": "Software Engineer and Full Stack Developer experienced in building, maintaining and modernizing web systems and enterprise applications.",
+    "projects": "Projects",
+    "projectsText": "The complete catalog with filters, tags, stacks, links and gallery will be connected to PostgreSQL in the next stages.",
+    "articles": "Articles",
+    "articlesText": "Area prepared for technical content about software development, architecture, security and career.",
+    "newsletter": "Newsletter",
+    "newsletterText": "Double opt-in and asynchronous RabbitMQ processing will be enabled in the messaging stage."
+  },
+  "footer": "Felipe Almeida Developer. Built with Next.js + NestJS."
+}

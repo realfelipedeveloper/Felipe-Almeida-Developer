@@ -1,0 +1,48 @@
+{
+  "name": "felipe-almeida-developer",
+  "private": true,
+  "version": "0.3.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "preinstall": "node infra/scripts/enforce-pnpm.mjs",
+    "prepare": "node infra/scripts/setup-husky.mjs",
+    "check:ports": "node infra/scripts/check-ports.mjs",
+    "predev": "pnpm check:ports --apps-only",
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write .",
+    "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
+    "infra:logs": "docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f",
+    "db:generate": "pnpm --filter @fad/api db:generate",
+    "db:validate": "pnpm --filter @fad/api db:validate",
+    "db:migrate:dev": "pnpm --filter @fad/api db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @fad/api db:migrate:deploy",
+    "db:seed": "pnpm --filter @fad/api db:seed",
+    "db:studio": "pnpm --filter @fad/api db:studio",
+    "db:setup": "pnpm db:generate && pnpm db:validate && pnpm db:migrate:deploy && pnpm db:seed && pnpm db:check",
+    "db:backup": "bash infra/scripts/backup.sh",
+    "db:restore": "bash infra/scripts/restore.sh",
+    "sdd:check": "node infra/scripts/sdd-check.mjs",
+    "db:check": "pnpm --filter @fad/api db:check"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,md,yml,yaml,css}": "prettier --write"
+  }
+}

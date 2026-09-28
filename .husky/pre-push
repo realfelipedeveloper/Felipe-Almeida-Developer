@@ -1,0 +1,8 @@
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+PATTERN='^(main|develop|(feature|fix|hotfix|chore|docs|test|refactor|perf|ci)\/[a-z0-9._-]+)$'
+if ! echo "$BRANCH" | grep -Eq "$PATTERN"; then
+  echo "❌ Nome de branch inválido: $BRANCH"
+  echo "   Use: feature/, fix/, hotfix/, chore/, docs/, test/, refactor/, perf/ ou ci/"
+  exit 1
+fi
+pnpm typecheck && pnpm test

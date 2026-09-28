@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "about": "Sobre mí",
+    "projects": "Proyectos",
+    "articles": "Artículos",
+    "news": "Noticias",
+    "contact": "Contacto"
+  },
+  "hero": {
+    "eyebrow": "Ingeniería de Software • Full Stack",
+    "title": "Felipe Almeida Developer",
+    "description": "Desarrollo, modernización y evolución de aplicaciones web con foco en arquitectura, calidad, seguridad y productos que funcionan en el mundo real.",
+    "projects": "Ver proyectos",
+    "contact": "Contactar"
+  },
+  "status": {
+    "title": "Fundación ejecutable finalizada",
+    "description": "Next.js, NestJS, i18n, Docker y la infraestructura base ya pueden ejecutarse localmente. Los módulos de negocio llegan en las próximas partes."
+  },
+  "sections": {
+    "about": "Sobre mí",
+    "aboutText": "Ingeniero de Software y Desarrollador Full Stack con experiencia en construcción, mantenimiento y modernización de sistemas web y aplicaciones corporativas.",
+    "projects": "Proyectos",
+    "projectsText": "El catálogo completo con filtros, etiquetas, stacks, enlaces y galería se conectará a PostgreSQL en las próximas etapas.",
+    "articles": "Artículos",
+    "articlesText": "Área preparada para contenido técnico sobre desarrollo de software, arquitectura, seguridad y carrera.",
+    "newsletter": "Newsletter",
+    "newsletterText": "La suscripción con double opt-in y procesamiento asíncrono con RabbitMQ se activará en la etapa de mensajería."
+  },
+  "footer": "Felipe Almeida Developer. Construido con Next.js + NestJS."
+}

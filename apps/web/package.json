@@ -1,0 +1,30 @@
+{
+  "name": "@fad/web",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../../infra/scripts/run-with-env.mjs next dev -p {WEB_PORT}",
+    "build": "next build",
+    "start": "node ../../infra/scripts/run-with-env.mjs next start -p {WEB_PORT}",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "node -e \"console.log('E2E será ativado na parte de testes.')\""
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "next-intl": "^4.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
