@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Baixar main validada
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 
