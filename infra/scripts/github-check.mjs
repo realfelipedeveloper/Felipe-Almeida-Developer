@@ -13,7 +13,6 @@ const obrigatorios = [
   '.github/workflows/codeql.yml',
   '.github/workflows/release.yml',
   '.github/workflows/deploy.yml',
-  '.github/dependabot.yml',
   '.github/CODEOWNERS',
 ];
 
@@ -84,6 +83,5 @@ console.log('- PR automático para develop: instalado');
 console.log('- Promoção automática develop → main: instalada');
 console.log('- Hotfix e retrointegração: instalados');
 console.log('- CodeQL: instalado');
-console.log('- Dependabot: instalado');
 console.log('- Release SemVer: instalada');
 console.log('- CD com artefato de entrega: instalado');
