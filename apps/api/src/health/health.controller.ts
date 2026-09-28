@@ -9,42 +9,28 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Verifica se a API está respondendo' })
-  @ApiOkResponse({
-    description: 'API disponível.',
-    schema: {
-      example: {
-        status: 'ok',
-        service: 'felipe-almeida-developer-api',
-        version: '0.3.0',
-        timestamp: '2026-09-28T15:00:00.000Z',
-      },
-    },
-  })
+  @ApiOkResponse({ description: 'API disponível.' })
   getHealth() {
     return this.healthService.getStatus();
   }
 
   @Get('database')
   @ApiOperation({ summary: 'Verifica a conexão com o PostgreSQL' })
-  @ApiOkResponse({
-    description: 'PostgreSQL disponível.',
-    schema: {
-      example: {
-        status: 'ok',
-        database: 'postgresql',
-        latencyMs: 3,
-        timestamp: '2026-09-28T15:00:00.000Z',
-      },
-    },
-  })
+  @ApiOkResponse({ description: 'PostgreSQL disponível.' })
   @ApiServiceUnavailableResponse({ description: 'PostgreSQL indisponível.' })
   async getDatabaseHealth() {
     const result = await this.healthService.getDatabaseStatus();
+    if (result.status !== 'ok') throw new ServiceUnavailableException(result);
+    return result;
+  }
 
-    if (result.status !== 'ok') {
-      throw new ServiceUnavailableException(result);
-    }
-
+  @Get('dependencies')
+  @ApiOperation({ summary: 'Verifica PostgreSQL, Redis e RabbitMQ' })
+  @ApiOkResponse({ description: 'Dependências críticas disponíveis.' })
+  @ApiServiceUnavailableResponse({ description: 'Uma ou mais dependências estão indisponíveis.' })
+  async getDependenciesHealth() {
+    const result = await this.healthService.getDependenciesStatus();
+    if (result.status !== 'ok') throw new ServiceUnavailableException(result);
     return result;
   }
 }

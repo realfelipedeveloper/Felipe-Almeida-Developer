@@ -1,6 +1,42 @@
-const now = new Date().toISOString();
-console.log(`[${now}] worker: processo iniciado.`);
-console.log('worker: consumidores RabbitMQ serão registrados na etapa de mensageria.');
+import { PrismaClient } from '@prisma/client';
+import { logger } from './infra/logger.js';
+import { RabbitConnection } from './infra/rabbitmq.js';
+import { AuditConsumer } from './services/audit-consumer.js';
+import { OutboxDispatcher } from './services/outbox-dispatcher.js';
 
-// Mantém o processo ativo durante `pnpm dev`, sem conectar à fila antes da etapa própria.
-setInterval(() => undefined, 60_000);
+const prisma = new PrismaClient();
+const rabbit = new RabbitConnection();
+const outbox = new OutboxDispatcher(prisma, rabbit);
+const consumer = new AuditConsumer(prisma, rabbit);
+
+async function bootstrap(): Promise<void> {
+  await prisma.$connect();
+  await rabbit.connect();
+  await consumer.start();
+  outbox.start();
+
+  logger.info(
+    { categoria: 'app' },
+    'Worker iniciado: publicação da outbox e consumidor idempotente de auditoria estão ativos.',
+  );
+}
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info({ categoria: 'app', signal }, 'Encerrando worker');
+  outbox.stop();
+  await rabbit.close();
+  await prisma.$disconnect();
+  process.exit(0);
+}
+
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+
+bootstrap().catch(async (error) => {
+  logger.fatal(
+    { categoria: 'app', erro: error instanceof Error ? error.message : String(error) },
+    'Falha ao iniciar o worker',
+  );
+  await prisma.$disconnect().catch(() => undefined);
+  process.exit(1);
+});
