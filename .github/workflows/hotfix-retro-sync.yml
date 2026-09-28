@@ -1,0 +1,52 @@
+name: Retrointegração automática de hotfix
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  retrointegrar:
+    name: Preparar retrointegração para develop
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'hotfix/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Configurar Git
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Aplicar commit do hotfix
+        shell: bash
+        env:
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          BRANCH="chore/retro-hotfix-${PR_NUMERO}"
+
+          git fetch origin main develop --quiet
+          git checkout -b "$BRANCH" origin/develop
+
+          if ! git cherry-pick "$MERGE_SHA"; then
+            git cherry-pick --abort || true
+            echo "::error::A retrointegração automática encontrou conflito. Faça a retrointegração manual do hotfix #${PR_NUMERO}."
+            exit 1
+          fi
+
+          git push origin "$BRANCH"
+          echo "Branch $BRANCH criada. O fluxo de PR automático abrirá a integração para develop."

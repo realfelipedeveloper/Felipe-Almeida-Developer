@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'chore/**'
+      - 'docs/**'
+      - 'test/**'
+      - 'refactor/**'
+      - 'perf/**'
+      - 'ci/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificacoes:
+    name: Verificações obrigatórias
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Habilitar Corepack e pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+          pnpm --version
+
+      - name: Localizar store do pnpm
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar cache do pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Validar política do pull request
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          TITULO: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          REGEX_TITULO='^(feat|fix|hotfix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-z0-9._-]+\))?: .{3,}$'
+
+          if [[ ! "$TITULO" =~ $REGEX_TITULO ]]; then
+            echo "::error::Título de PR inválido: $TITULO"
+            echo "Use Conventional Commits, por exemplo: feat: implementa nova funcionalidade"
+            exit 1
+          fi
+
+          if (( ${#TITULO} > 100 )); then
+            echo "::error::O título do PR excede 100 caracteres."
+            exit 1
+          fi
+
+          if [[ "$BASE" == "develop" ]]; then
+            if [[ ! "$HEAD" =~ ^(feature|fix|hotfix|chore|docs|test|refactor|perf|ci)/[a-z0-9._-]+$ ]] && [[ ! "$HEAD" =~ ^dependabot/ ]]; then
+              echo "::error::PR para develop deve vir de uma branch de trabalho permitida."
+              exit 1
+            fi
+          elif [[ "$BASE" == "main" ]]; then
+            if [[ "$HEAD" != "develop" ]] && [[ ! "$HEAD" =~ ^hotfix/[a-z0-9._-]+$ ]]; then
+              echo "::error::PR para main deve vir de develop ou hotfix/*."
+              exit 1
+            fi
+          fi
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Validar configuração do GitHub
+        run: pnpm github:check
+
+      - name: Gerar Prisma Client
+        run: pnpm db:generate
+
+      - name: Validar schema Prisma
+        run: pnpm db:validate
+
+      - name: Executar lint
+        run: pnpm lint
+
+      - name: Executar typecheck
+        run: pnpm typecheck
+
+      - name: Executar testes
+        run: pnpm test
+
+      - name: Executar build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3333
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: pnpm build

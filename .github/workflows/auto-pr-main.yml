@@ -1,0 +1,85 @@
+name: PR automático de develop para main
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  abrir-pr:
+    name: Abrir ou manter promoção para main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar diferenças e abrir PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORIO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main --quiet
+
+          if git diff --quiet origin/main...HEAD; then
+            echo "main já está sincronizada com develop. Nenhum PR necessário."
+            exit 0
+          fi
+
+          EXISTENTE="$(gh pr list \
+            --repo "$REPOSITORIO" \
+            --head develop \
+            --base main \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "$EXISTENTE" ]]; then
+            echo "PR de promoção #$EXISTENTE já existe. Os novos commits já estão refletidos nele."
+            exit 0
+          fi
+
+          CORPO="$(cat <<'EOF'
+          ## Resumo
+
+          Promove automaticamente o estado validado da branch `develop` para a `main`.
+
+          ## Validações
+
+          - [ ] CI concluído com sucesso
+          - [ ] Alterações integradas e validadas em `develop`
+          - [ ] Revisão final realizada antes da promoção
+
+          ## Observação
+
+          Este PR é aberto automaticamente, mas o merge para `main` permanece manual.
+          EOF
+          )"
+
+          URL="$(gh pr create \
+            --repo "$REPOSITORIO" \
+            --base main \
+            --head develop \
+            --title "chore: promove develop para main" \
+            --body "$CORPO")"
+
+          echo "PR criado: $URL"
+
+          gh label create "promocao" \
+            --repo "$REPOSITORIO" \
+            --color "5319e7" \
+            --description "Promoção de develop para main" \
+            --force
+
+          NUMERO="$(gh pr list --repo "$REPOSITORIO" --head develop --base main --state open --json number --jq '.[0].number')"
+          gh pr edit "$NUMERO" --repo "$REPOSITORIO" --add-label "promocao"

@@ -5,4 +5,5 @@ if ! echo "$BRANCH" | grep -Eq "$PATTERN"; then
   echo "   Use: feature/, fix/, hotfix/, chore/, docs/, test/, refactor/, perf/ ou ci/"
   exit 1
 fi
-pnpm typecheck && pnpm test
+
+pnpm github:check && pnpm typecheck && pnpm test
