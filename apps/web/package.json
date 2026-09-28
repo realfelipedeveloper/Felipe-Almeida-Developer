@@ -1,6 +1,6 @@
 {
   "name": "@fad/web",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "node ../../infra/scripts/run-with-env.mjs next dev -p {WEB_PORT}",
@@ -12,12 +12,14 @@
     "test:e2e": "node -e \"console.log('E2E será ativado na parte de testes.')\""
   },
   "dependencies": {
+    "html-to-text": "^10.0.1",
     "next": "^15.5.0",
     "next-intl": "^4.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/html-to-text": "^9.0.4",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
