@@ -1,6 +1,6 @@
 {
   "name": "@fad/web",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "dev": "node ../../infra/scripts/run-with-env.mjs next dev -p {WEB_PORT}",
@@ -9,7 +9,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "node -e \"console.log('E2E será ativado na parte de testes.')\""
+    "test:e2e": "node -e \"console.log('E2E visual do Web será executado na validação funcional final após a Parte 08.')\""
   },
   "dependencies": {
     "html-to-text": "^10.0.1",

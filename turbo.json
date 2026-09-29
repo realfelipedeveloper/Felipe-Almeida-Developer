@@ -6,6 +6,7 @@
     "API_PORT",
     "NEXT_PUBLIC_API_URL",
     "NEXT_PUBLIC_SITE_URL",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "RABBITMQ_URL"
   ],
   "tasks": {

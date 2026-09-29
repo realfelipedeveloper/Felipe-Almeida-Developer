@@ -2,6 +2,10 @@
 
 import { FormEvent, useState } from 'react';
 import type { Locale } from '@/i18n/config';
+import {
+  resetTurnstile,
+  TurnstileWidget,
+} from './turnstile-widget';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
@@ -21,25 +25,33 @@ export function NewsletterForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const target = event.currentTarget;
+
     setLoading(true);
     setFeedback('');
     setError(false);
 
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(target);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/newsletter/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+      const response = await fetch(
+        `${API_BASE_URL}/api/newsletter/subscribe`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            email: String(form.get('email') ?? ''),
+            website: String(form.get('website') ?? ''),
+            turnstileToken: String(
+              form.get('cf-turnstile-response') ?? '',
+            ),
+            locale,
+          }),
         },
-        body: JSON.stringify({
-          email: String(form.get('email') ?? ''),
-          website: String(form.get('website') ?? ''),
-          locale,
-        }),
-      });
+      );
 
       const body = (await response.json().catch(() => null)) as
         | { message?: string | string[] }
@@ -59,7 +71,7 @@ export function NewsletterForm({
           ? body.message
           : 'Confira seu e-mail para confirmar a inscrição.',
       );
-      event.currentTarget.reset();
+      target.reset();
     } catch (cause) {
       setError(true);
       setFeedback(
@@ -68,6 +80,7 @@ export function NewsletterForm({
           : 'Não foi possível concluir a inscrição.',
       );
     } finally {
+      resetTurnstile();
       setLoading(false);
     }
   }
@@ -85,7 +98,11 @@ export function NewsletterForm({
             autoComplete="email"
             className="field-control flex-1"
           />
-          <button type="submit" disabled={loading} className="btn-primary shrink-0">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary shrink-0"
+          >
             {loading ? '…' : submitLabel}
             <span aria-hidden="true">→</span>
           </button>
@@ -97,8 +114,16 @@ export function NewsletterForm({
         <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
 
+      <TurnstileWidget />
+
       {feedback ? (
-        <p className={error ? 'form-feedback is-error' : 'form-feedback is-success'}>
+        <p
+          className={
+            error
+              ? 'form-feedback is-error'
+              : 'form-feedback is-success'
+          }
+        >
           {feedback}
         </p>
       ) : null}

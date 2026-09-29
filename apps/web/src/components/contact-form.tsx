@@ -2,6 +2,10 @@
 
 import { FormEvent, useState } from 'react';
 import type { Locale } from '@/i18n/config';
+import {
+  resetTurnstile,
+  TurnstileWidget,
+} from './turnstile-widget';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
@@ -27,17 +31,22 @@ export function ContactForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const target = event.currentTarget;
+
     setLoading(true);
     setFeedback('');
     setError(false);
 
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(target);
     const payload = {
       name: String(form.get('name') ?? ''),
       email: String(form.get('email') ?? ''),
       subject: String(form.get('subject') ?? ''),
       message: String(form.get('message') ?? ''),
       website: String(form.get('website') ?? ''),
+      turnstileToken: String(
+        form.get('cf-turnstile-response') ?? '',
+      ),
       locale,
     };
 
@@ -69,7 +78,7 @@ export function ContactForm({
           ? body.message
           : 'Mensagem enviada com sucesso.',
       );
-      event.currentTarget.reset();
+      target.reset();
     } catch (cause) {
       setError(true);
       setFeedback(
@@ -78,6 +87,7 @@ export function ContactForm({
           : 'Não foi possível enviar a mensagem.',
       );
     } finally {
+      resetTurnstile();
       setLoading(false);
     }
   }
@@ -138,13 +148,25 @@ export function ContactForm({
         <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
 
+      <TurnstileWidget />
+
       {feedback ? (
-        <p className={error ? 'form-feedback is-error' : 'form-feedback is-success'}>
+        <p
+          className={
+            error
+              ? 'form-feedback is-error'
+              : 'form-feedback is-success'
+          }
+        >
           {feedback}
         </p>
       ) : null}
 
-      <button type="submit" disabled={loading} className="btn-primary w-full sm:w-auto">
+      <button
+        type="submit"
+        disabled={loading}
+        className="btn-primary w-full sm:w-auto"
+      >
         {loading ? '…' : labels.send}
         <span aria-hidden="true">↗</span>
       </button>
