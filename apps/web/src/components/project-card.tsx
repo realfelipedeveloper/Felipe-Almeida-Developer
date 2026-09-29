@@ -15,18 +15,39 @@ export function ProjectCard({
   lifecycleLabel: string;
 }) {
   return (
-    <article className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900/60">
+    <article className="site-card group flex h-full flex-col p-6 md:p-7">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{lifecycleLabel}</span>
-        {project.featured ? <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="Destaque" /> : null}
+        <span className="eyebrow">{lifecycleLabel}</span>
+        {project.featured ? (
+          <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,.65)]" />
+            featured
+          </span>
+        ) : null}
       </div>
-      <h2 className="mt-5 text-2xl font-black tracking-[-0.03em] text-slate-950 dark:text-white">{project.title}</h2>
-      <p className="mt-3 flex-1 leading-7 text-slate-600 dark:text-slate-300">{project.summary}</p>
+
+      <h2 className="mt-5 text-2xl font-bold tracking-[-0.035em] text-zinc-950 dark:text-zinc-100">
+        {project.title}
+      </h2>
+
+      <p className="mt-3 flex-1 text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+        {project.summary}
+      </p>
+
       <div className="mt-5 flex flex-wrap gap-2">
-        {project.technologies.slice(0, 5).map((technology) => <Tag key={technology.slug}>{technology.name}</Tag>)}
+        {project.technologies.slice(0, 5).map((technology) => (
+          <Tag key={technology.slug}>{technology.name}</Tag>
+        ))}
       </div>
-      <Link href={`/${locale}/projetos/${project.slug}`} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-slate-950 dark:text-white">
-        {detailsLabel} <span aria-hidden="true">→</span>
+
+      <Link
+        href={`/${locale}/projetos/${project.slug}`}
+        className="section-link mt-7"
+      >
+        {detailsLabel}
+        <span className="transition-transform group-hover:translate-x-1" aria-hidden="true">
+          →
+        </span>
       </Link>
     </article>
   );

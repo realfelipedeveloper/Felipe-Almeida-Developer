@@ -19,15 +19,15 @@ export function LanguageSwitcher({ locale }: { locale: Locale }) {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-300 p-1 dark:border-slate-700">
+    <div className="flex items-center gap-0.5 rounded-full border border-zinc-300 bg-zinc-100/60 p-1 dark:border-zinc-800 dark:bg-white/[0.025]">
       {locales.map((item) => (
         <a
           key={item}
           href={hrefFor(item)}
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+          className={`rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide transition ${
             item === locale
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-              : 'text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+              ? 'bg-zinc-900 text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-950'
+              : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-500 dark:hover:text-white'
           }`}
         >
           {labels[item]}
