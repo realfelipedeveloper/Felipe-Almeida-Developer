@@ -11,6 +11,7 @@ import { ArticlesModule } from './modules/articles/articles.module';
 import { NewsModule } from './modules/news/news.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { EngagementModule } from './modules/engagement/engagement.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AdminModule } from './modules/admin/admin.module';
     NewsModule,
     AuthModule,
     AdminModule,
+    EngagementModule,
   ],
 })
 export class AppModule implements NestModule {

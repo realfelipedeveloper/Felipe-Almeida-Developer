@@ -1,6 +1,6 @@
 {
   "name": "@fad/worker",
-  "version": "0.4.0",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "node ../../infra/scripts/run-with-env.mjs tsx watch src/main.ts",
@@ -8,8 +8,8 @@
     "start": "node ../../infra/scripts/run-with-env.mjs node dist/main.js",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('Testes do worker serão adicionados com a mensageria.')\"",
-    "test:e2e": "node -e \"console.log('E2E do worker será adicionado com a mensageria.')\""
+    "test": "node -e \"console.log('Testes específicos do worker entram na Parte 08.')\"",
+    "test:e2e": "node -e \"console.log('E2E do worker entra na Parte 08.')\""
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
