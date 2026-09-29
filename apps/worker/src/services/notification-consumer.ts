@@ -1,7 +1,4 @@
-import {
-  PrismaClient,
-  NewsletterTokenPurpose,
-} from '@prisma/client';
+import { PrismaClient, NewsletterTokenPurpose } from '@prisma/client';
 import { createHmac } from 'node:crypto';
 import type { ConsumeMessage } from 'amqplib';
 import { RabbitConnection } from '../infra/rabbitmq.js';
@@ -9,14 +6,10 @@ import { logger } from '../infra/logger.js';
 import { EmailSender } from './email-sender.js';
 import { WhatsAppSender } from './whatsapp-sender.js';
 
-const CONSUMER_NAME =
-  'worker.notifications.v1';
+const CONSUMER_NAME = 'worker.notifications.v1';
 const MAX_RETRIES = 5;
 
-type PublicLocale =
-  | 'pt-BR'
-  | 'en'
-  | 'es';
+type PublicLocale = 'pt-BR' | 'en' | 'es';
 
 interface EventEnvelope {
   eventId: string;
@@ -29,68 +22,42 @@ interface EventEnvelope {
 
 const copy = {
   'pt-BR': {
-    confirmSubject:
-      'Confirme sua inscrição na newsletter',
+    confirmSubject: 'Confirme sua inscrição na newsletter',
     confirmTitle: 'Falta só confirmar.',
-    confirmText:
-      'Clique no botão abaixo para confirmar que deseja receber a newsletter.',
-    confirmButton:
-      'Confirmar inscrição',
-    welcomeSubject:
-      'Inscrição confirmada',
+    confirmText: 'Clique no botão abaixo para confirmar que deseja receber a newsletter.',
+    confirmButton: 'Confirmar inscrição',
+    welcomeSubject: 'Inscrição confirmada',
     welcomeTitle: 'Tudo certo.',
-    welcomeText:
-      'Sua inscrição foi confirmada. Você pode cancelar a qualquer momento pelo link abaixo.',
-    unsubscribe:
-      'Cancelar inscrição',
-    contactSubject:
-      'Novo contato pelo portfólio',
+    welcomeText: 'Sua inscrição foi confirmada. Você pode cancelar a qualquer momento pelo link abaixo.',
+    unsubscribe: 'Cancelar inscrição',
+    contactSubject: 'Novo contato pelo portfólio',
   },
   en: {
-    confirmSubject:
-      'Confirm your newsletter subscription',
+    confirmSubject: 'Confirm your newsletter subscription',
     confirmTitle: 'One last step.',
-    confirmText:
-      'Use the button below to confirm that you want to receive the newsletter.',
-    confirmButton:
-      'Confirm subscription',
-    welcomeSubject:
-      'Subscription confirmed',
-    welcomeTitle:
-      'You are all set.',
-    welcomeText:
-      'Your subscription is confirmed. You can unsubscribe at any time using the link below.',
+    confirmText: 'Use the button below to confirm that you want to receive the newsletter.',
+    confirmButton: 'Confirm subscription',
+    welcomeSubject: 'Subscription confirmed',
+    welcomeTitle: 'You are all set.',
+    welcomeText: 'Your subscription is confirmed. You can unsubscribe at any time using the link below.',
     unsubscribe: 'Unsubscribe',
-    contactSubject:
-      'New portfolio contact',
+    contactSubject: 'New portfolio contact',
   },
   es: {
-    confirmSubject:
-      'Confirma tu suscripción a la newsletter',
-    confirmTitle:
-      'Solo falta confirmar.',
-    confirmText:
-      'Usa el botón para confirmar que deseas recibir la newsletter.',
-    confirmButton:
-      'Confirmar suscripción',
-    welcomeSubject:
-      'Suscripción confirmada',
+    confirmSubject: 'Confirma tu suscripción a la newsletter',
+    confirmTitle: 'Solo falta confirmar.',
+    confirmText: 'Usa el botón para confirmar que deseas recibir la newsletter.',
+    confirmButton: 'Confirmar suscripción',
+    welcomeSubject: 'Suscripción confirmada',
     welcomeTitle: 'Todo listo.',
-    welcomeText:
-      'Tu suscripción está confirmada. Puedes cancelarla cuando quieras desde el enlace inferior.',
-    unsubscribe:
-      'Cancelar suscripción',
-    contactSubject:
-      'Nuevo contacto desde el portafolio',
+    welcomeText: 'Tu suscripción está confirmada. Puedes cancelarla cuando quieras desde el enlace inferior.',
+    unsubscribe: 'Cancelar suscripción',
+    contactSubject: 'Nuevo contacto desde el portafolio',
   },
-} satisfies Record<
-  PublicLocale,
-  Record<string, string>
->;
+} satisfies Record<PublicLocale, Record<string, string>>;
 
 const passwordResetCopy = {
-  subject:
-    'Recuperação de senha administrativa',
+  subject: 'Recuperação de senha administrativa',
   title: 'Redefina sua senha.',
   text:
     'Recebemos uma solicitação para redefinir a senha do painel administrativo. O link abaixo é válido por 30 minutos e pode ser usado apenas uma vez. Se você não solicitou esta alteração, ignore esta mensagem.',
@@ -98,10 +65,8 @@ const passwordResetCopy = {
 };
 
 export class NotificationConsumer {
-  private readonly email =
-    new EmailSender();
-  private readonly whatsapp =
-    new WhatsAppSender();
+  private readonly email = new EmailSender();
+  private readonly whatsapp = new WhatsAppSender();
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -109,148 +74,80 @@ export class NotificationConsumer {
   ) {}
 
   async start(): Promise<void> {
-    await this.rabbit.consumeNotifications(
-      (message) =>
-        this.handle(message),
-    );
+    await this.rabbit.consumeNotifications((message) => this.handle(message));
   }
 
-  private async handle(
-    message: ConsumeMessage,
-  ): Promise<void> {
+  private async handle(message: ConsumeMessage): Promise<void> {
     try {
-      const event = JSON.parse(
-        message.content.toString('utf8'),
-      ) as EventEnvelope;
-
-      const existing =
-        await this.prisma.processedEvent.findUnique(
-          {
-            where: {
-              eventId_consumer: {
-                eventId: event.eventId,
-                consumer: CONSUMER_NAME,
-              },
-            },
+      const event = JSON.parse(message.content.toString('utf8')) as EventEnvelope;
+      const existing = await this.prisma.processedEvent.findUnique({
+        where: {
+          eventId_consumer: {
+            eventId: event.eventId,
+            consumer: CONSUMER_NAME,
           },
-        );
+        },
+      });
 
       if (existing) {
         this.rabbit.ack(message);
         return;
       }
 
-      if (
-        event.eventName ===
-        'contact.created'
-      ) {
-        await this.handleContact(
-          event.payload,
-        );
-      } else if (
-        event.eventName ===
-        'newsletter.confirmation.requested'
-      ) {
-        await this.handleConfirmation(
-          event.payload,
-        );
-      } else if (
-        event.eventName ===
-        'newsletter.confirmed'
-      ) {
-        await this.handleWelcome(
-          event.payload,
-        );
-      } else if (
-        event.eventName ===
-        'admin.password-reset.requested'
-      ) {
-        await this.handlePasswordReset(
-          event.payload,
-        );
+      if (event.eventName === 'contact.created') {
+        await this.handleContact(event.payload);
+      } else if (event.eventName === 'newsletter.confirmation.requested') {
+        await this.handleConfirmation(event.payload);
+      } else if (event.eventName === 'newsletter.confirmed') {
+        await this.handleWelcome(event.payload);
+      } else if (event.eventName === 'admin.password-reset.requested') {
+        await this.handlePasswordReset(event.payload);
       }
 
-      await this.prisma.processedEvent.create(
-        {
-          data: {
-            eventId: event.eventId,
-            consumer: CONSUMER_NAME,
-          },
+      await this.prisma.processedEvent.create({
+        data: {
+          eventId: event.eventId,
+          consumer: CONSUMER_NAME,
         },
-      );
+      });
 
       this.rabbit.ack(message);
     } catch (error) {
       const currentRetry = Number(
-        message.properties.headers?.[
-          'x-fad-retry-count'
-        ] ?? 0,
+        message.properties.headers?.['x-fad-retry-count'] ?? 0,
       );
-
-      const reason =
-        error instanceof Error
-          ? error.message
-          : String(error);
+      const reason = error instanceof Error ? error.message : String(error);
 
       logger.error(
         {
           categoria: 'notificacoes',
           retry: currentRetry,
           erro: reason,
-          messageId:
-            message.properties.messageId,
+          messageId: message.properties.messageId,
         },
         'Falha ao processar notificação',
       );
 
-      if (
-        currentRetry >=
-        MAX_RETRIES
-      ) {
-        await this.rabbit.deadLetter(
-          message,
-          reason,
-        );
+      if (currentRetry >= MAX_RETRIES) {
+        await this.rabbit.deadLetter(message, reason);
         return;
       }
 
-      await this.rabbit.retry(
-        message,
-        currentRetry,
-      );
+      await this.rabbit.retry(message, currentRetry);
     }
   }
 
-  private async handleContact(
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    const inbox =
-      process.env.CONTACT_INBOX;
-
-    if (
-      !inbox ||
-      inbox.startsWith('TODO')
-    ) {
-      throw new Error(
-        'CONTACT_INBOX não configurado.',
-      );
+  private async handleContact(payload: Record<string, unknown>): Promise<void> {
+    const inbox = process.env.CONTACT_INBOX;
+    if (!inbox || inbox.startsWith('TODO')) {
+      throw new Error('CONTACT_INBOX não configurado.');
     }
 
-    const name = String(
-      payload.name ?? '',
-    );
-    const email = String(
-      payload.email ?? '',
-    );
-    const subject = String(
-      payload.subject ?? '',
-    );
-    const message = String(
-      payload.message ?? '',
-    );
-    const locale = this.locale(
-      payload.locale,
-    );
+    const name = String(payload.name ?? '');
+    const email = String(payload.email ?? '');
+    const subject = String(payload.subject ?? '');
+    const message = String(payload.message ?? '');
+    const locale = this.locale(payload.locale);
     const texts = copy[locale];
 
     await this.email.send({
@@ -269,43 +166,22 @@ export class NotificationConsumer {
       `,
     });
 
-    await this.whatsapp.notifyContact({
-      name,
-      email,
-      subject,
-    });
+    await this.whatsapp.notifyContact({ name, email, subject });
   }
 
-  private async handleConfirmation(
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    const locale = this.locale(
-      payload.locale,
-    );
+  private async handleConfirmation(payload: Record<string, unknown>): Promise<void> {
+    const locale = this.locale(payload.locale);
     const texts = copy[locale];
-    const email = String(
-      payload.email ?? '',
+    const email = String(payload.email ?? '');
+    const subscriberId = String(payload.subscriberId ?? '');
+    const tokenId = String(payload.tokenId ?? '');
+    const token = this.deriveToken(
+      tokenId,
+      subscriberId,
+      NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
     );
-    const subscriberId = String(
-      payload.subscriberId ?? '',
-    );
-    const tokenId = String(
-      payload.tokenId ?? '',
-    );
-
-    const token =
-      this.deriveNewsletterToken(
-        tokenId,
-        subscriberId,
-        NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
-      );
-
-    const base =
-      process.env.WEB_URL ??
-      'http://localhost:3000';
-
-    const url =
-      `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
     await this.email.send({
       to: email,
@@ -320,36 +196,19 @@ export class NotificationConsumer {
     });
   }
 
-  private async handleWelcome(
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    const locale = this.locale(
-      payload.locale,
-    );
+  private async handleWelcome(payload: Record<string, unknown>): Promise<void> {
+    const locale = this.locale(payload.locale);
     const texts = copy[locale];
-    const email = String(
-      payload.email ?? '',
+    const email = String(payload.email ?? '');
+    const subscriberId = String(payload.subscriberId ?? '');
+    const tokenId = String(payload.unsubscribeTokenId ?? '');
+    const token = this.deriveToken(
+      tokenId,
+      subscriberId,
+      NewsletterTokenPurpose.UNSUBSCRIBE,
     );
-    const subscriberId = String(
-      payload.subscriberId ?? '',
-    );
-    const tokenId = String(
-      payload.unsubscribeTokenId ?? '',
-    );
-
-    const token =
-      this.deriveNewsletterToken(
-        tokenId,
-        subscriberId,
-        NewsletterTokenPurpose.UNSUBSCRIBE,
-      );
-
-    const base =
-      process.env.WEB_URL ??
-      'http://localhost:3000';
-
-    const url =
-      `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
 
     await this.email.send({
       to: email,
@@ -364,48 +223,23 @@ export class NotificationConsumer {
     });
   }
 
-  private async handlePasswordReset(
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    const email = String(
-      payload.email ?? '',
-    );
-    const adminUserId = String(
-      payload.adminUserId ?? '',
-    );
-    const tokenId = String(
-      payload.tokenId ?? '',
-    );
+  private async handlePasswordReset(payload: Record<string, unknown>): Promise<void> {
+    const email = String(payload.email ?? '');
+    const adminUserId = String(payload.adminUserId ?? '');
+    const tokenId = String(payload.tokenId ?? '');
 
-    if (
-      !email ||
-      !adminUserId ||
-      !tokenId
-    ) {
-      throw new Error(
-        'Evento de recuperação de senha inválido.',
-      );
+    if (!email || !adminUserId || !tokenId) {
+      throw new Error('Evento de recuperação de senha inválido.');
     }
 
-    const token =
-      this.derivePasswordResetToken(
-        tokenId,
-        adminUserId,
-      );
-
-    const base =
-      process.env.WEB_URL ??
-      'http://localhost:3000';
-
-    const url =
-      `${base}/admin/redefinir-senha?token=${encodeURIComponent(token)}`;
+    const token = this.derivePasswordResetToken(tokenId, adminUserId);
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/admin/redefinir-senha?token=${encodeURIComponent(token)}`;
 
     await this.email.send({
       to: email,
-      subject:
-        passwordResetCopy.subject,
-      text:
-        `${passwordResetCopy.text}\n\n${url}`,
+      subject: passwordResetCopy.subject,
+      text: `${passwordResetCopy.text}\n\n${url}`,
       html: this.layout(
         passwordResetCopy.title,
         passwordResetCopy.text,
@@ -415,78 +249,52 @@ export class NotificationConsumer {
     });
   }
 
-  private deriveNewsletterToken(
+  private deriveToken(
     tokenId: string,
     subscriberId: string,
     purpose: NewsletterTokenPurpose,
   ): string {
-    const configured =
-      process.env.NEWSLETTER_TOKEN_SECRET?.trim();
-
+    const configured = process.env.NEWSLETTER_TOKEN_SECRET?.trim();
     const secret =
-      configured &&
-      !configured.startsWith('gere-')
+      configured && !configured.startsWith('gere-')
         ? configured
         : process.env.JWT_REFRESH_SECRET?.trim();
 
-    if (
-      !secret ||
-      secret.length < 32 ||
-      secret.startsWith('gere-')
-    ) {
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
       throw new Error(
         'NEWSLETTER_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
       );
     }
 
-    const signature = createHmac(
-      'sha256',
-      secret,
-    )
-      .update(
-        `${tokenId}:${subscriberId}:${purpose}`,
-      )
+    const signature = createHmac('sha256', secret)
+      .update(`${tokenId}:${subscriberId}:${purpose}`)
       .digest('base64url');
 
     return `${tokenId}.${signature}`;
   }
 
-  private derivePasswordResetToken(
-    tokenId: string,
-    adminUserId: string,
-  ): string {
+  private derivePasswordResetToken(tokenId: string, adminUserId: string): string {
+    const configured = process.env.PASSWORD_RESET_TOKEN_SECRET?.trim();
     const secret =
-      process.env.JWT_REFRESH_SECRET?.trim();
+      configured && !configured.startsWith('gere-')
+        ? configured
+        : process.env.JWT_REFRESH_SECRET?.trim();
 
-    if (
-      !secret ||
-      secret.length < 32 ||
-      secret.startsWith('gere-')
-    ) {
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
       throw new Error(
-        'JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres para recuperação de senha.',
+        'PASSWORD_RESET_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
       );
     }
 
-    const signature = createHmac(
-      'sha256',
-      secret,
-    )
-      .update(
-        `admin-password-reset:${tokenId}:${adminUserId}`,
-      )
+    const signature = createHmac('sha256', secret)
+      .update(`admin-password-reset:${tokenId}:${adminUserId}`)
       .digest('base64url');
 
     return `${tokenId}.${signature}`;
   }
 
-  private locale(
-    value: unknown,
-  ): PublicLocale {
-    return value === 'en' ||
-      value === 'es'
-      ? value
-      : 'pt-BR';
+  private locale(value: unknown): PublicLocale {
+    return value === 'en' || value === 'es' ? value : 'pt-BR';
   }
 
   private layout(
@@ -509,9 +317,7 @@ export class NotificationConsumer {
     `;
   }
 
-  private escape(
-    value: string,
-  ): string {
+  private escape(value: string): string {
     return value
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')

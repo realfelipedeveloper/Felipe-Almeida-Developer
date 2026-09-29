@@ -164,6 +164,7 @@ test('EmailSender falha se SendGrid estiver selecionado sem API key', async () =
 
 test('NotificationConsumer deriva token determinístico e escapa HTML', () => {
   process.env.NEWSLETTER_TOKEN_SECRET = 'n'.repeat(64);
+  process.env.PASSWORD_RESET_TOKEN_SECRET = 'p'.repeat(64);
 
   const consumer = new NotificationConsumer(
     {} as never,
@@ -175,6 +176,10 @@ test('NotificationConsumer deriva token determinístico e escapa HTML', () => {
       tokenId: string,
       subscriberId: string,
       purpose: NewsletterTokenPurpose,
+    ) => string;
+    derivePasswordResetToken: (
+      tokenId: string,
+      adminUserId: string,
     ) => string;
     escape: (value: string) => string;
     locale: (value: unknown) => 'pt-BR' | 'en' | 'es';
@@ -190,9 +195,17 @@ test('NotificationConsumer deriva token determinístico e escapa HTML', () => {
     'subscriber-id',
     NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
   );
+  const passwordResetToken = internals.derivePasswordResetToken(
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222',
+  );
 
   assert.equal(first, second);
   assert.match(first, /^token-id\.[A-Za-z0-9_-]+$/);
+  assert.match(
+    passwordResetToken,
+    /^11111111-1111-4111-8111-111111111111\.[A-Za-z0-9_-]{43}$/,
+  );
   assert.equal(
     internals.escape('<script>"x"&</script>'),
     '&lt;script&gt;&quot;x&quot;&amp;&lt;/script&gt;',
