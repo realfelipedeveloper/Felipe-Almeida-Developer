@@ -116,7 +116,7 @@ jobs:
       - name: Executar typecheck
         run: pnpm typecheck
 
-      - name: Executar testes
+      - name: Executar testes unitários
         run: pnpm test
 
       - name: Executar build
@@ -124,3 +124,6 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:3333
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
         run: pnpm build
+
+      - name: Executar testes E2E sem infraestrutura externa
+        run: pnpm test:e2e

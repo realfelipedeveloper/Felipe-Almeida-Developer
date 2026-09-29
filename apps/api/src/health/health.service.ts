@@ -15,7 +15,7 @@ export class HealthService {
     return {
       status: 'ok',
       service: 'felipe-almeida-developer-api',
-      version: '0.4.0',
+      version: '0.8.0',
       timestamp: new Date().toISOString(),
     };
   }
@@ -40,7 +40,11 @@ export class HealthService {
 
     const dependencies = { postgresql, redis, rabbitmq };
     return {
-      status: Object.values(dependencies).every((item) => item.status === 'ok') ? 'ok' : 'degraded',
+      status: Object.values(dependencies).every(
+        (item) => item.status === 'ok',
+      )
+        ? 'ok'
+        : 'degraded',
       dependencies,
       timestamp: new Date().toISOString(),
     };
@@ -56,7 +60,11 @@ export class HealthService {
     }
   }
 
-  private result(name: string, status: 'ok' | 'down', startedAt: number) {
+  private result(
+    name: string,
+    status: 'ok' | 'down',
+    startedAt: number,
+  ) {
     return {
       status,
       dependency: name,
