@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import type { Locale } from '@/i18n/config';
+import { SuccessModal } from './success-modal';
 import {
   resetTurnstile,
   TurnstileWidget,
@@ -9,6 +10,27 @@ import {
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+
+const successModalCopy: Record<
+  Locale,
+  { eyebrow: string; title: string; fallbackMessage: string }
+> = {
+  'pt-BR': {
+    eyebrow: 'INSCRIÇÃO RECEBIDA',
+    title: 'Confira seu e-mail.',
+    fallbackMessage: 'Enviamos um link para confirmar sua inscrição na newsletter.',
+  },
+  en: {
+    eyebrow: 'SUBSCRIPTION RECEIVED',
+    title: 'Check your email.',
+    fallbackMessage: 'We sent you a link to confirm your newsletter subscription.',
+  },
+  es: {
+    eyebrow: 'SUSCRIPCIÓN RECIBIDA',
+    title: 'Revisa tu correo.',
+    fallbackMessage: 'Te enviamos un enlace para confirmar tu suscripción a la newsletter.',
+  },
+};
 
 export function NewsletterForm({
   locale,
@@ -22,6 +44,8 @@ export function NewsletterForm({
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const modalCopy = successModalCopy[locale];
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,6 +54,7 @@ export function NewsletterForm({
     setLoading(true);
     setFeedback('');
     setError(false);
+    setSuccessMessage('');
 
     const form = new FormData(target);
 
@@ -66,10 +91,10 @@ export function NewsletterForm({
         );
       }
 
-      setFeedback(
+      setSuccessMessage(
         typeof body?.message === 'string'
           ? body.message
-          : 'Confira seu e-mail para confirmar a inscrição.',
+          : modalCopy.fallbackMessage,
       );
       target.reset();
     } catch (cause) {
@@ -86,47 +111,52 @@ export function NewsletterForm({
   }
 
   return (
-    <form onSubmit={submit} className="form-stack">
-      <label className="field-label">
-        {emailLabel}
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-          <input
-            name="email"
-            type="email"
-            required
-            maxLength={320}
-            autoComplete="email"
-            className="field-control flex-1"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary shrink-0"
-          >
-            {loading ? '…' : submitLabel}
-            <span aria-hidden="true">→</span>
-          </button>
-        </div>
-      </label>
+    <>
+      <form onSubmit={submit} className="form-stack">
+        <label className="field-label">
+          {emailLabel}
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+            <input
+              name="email"
+              type="email"
+              required
+              maxLength={320}
+              autoComplete="email"
+              className="field-control flex-1"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary shrink-0"
+            >
+              {loading ? '…' : submitLabel}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </label>
 
-      <label className="honeypot" aria-hidden="true">
-        Website
-        <input name="website" tabIndex={-1} autoComplete="off" />
-      </label>
+        <label className="honeypot" aria-hidden="true">
+          Website
+          <input name="website" tabIndex={-1} autoComplete="off" />
+        </label>
 
-      <TurnstileWidget />
+        <TurnstileWidget />
 
-      {feedback ? (
-        <p
-          className={
-            error
-              ? 'form-feedback is-error'
-              : 'form-feedback is-success'
-          }
-        >
-          {feedback}
-        </p>
-      ) : null}
-    </form>
+        {feedback && error ? (
+          <p className="form-feedback is-error" role="alert">
+            {feedback}
+          </p>
+        ) : null}
+      </form>
+
+      <SuccessModal
+        open={Boolean(successMessage)}
+        locale={locale}
+        eyebrow={modalCopy.eyebrow}
+        title={modalCopy.title}
+        message={successMessage || modalCopy.fallbackMessage}
+        onClose={() => setSuccessMessage('')}
+      />
+    </>
   );
 }
