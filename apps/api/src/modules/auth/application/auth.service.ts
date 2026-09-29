@@ -7,6 +7,7 @@ import {
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { RedisService } from '../../../infra/redis/redis.service';
@@ -22,6 +23,16 @@ import { TokenService } from './token.service';
 
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const LOGIN_MAX_ATTEMPTS = 5;
+
+const PASSWORD_RESET_WINDOW_SECONDS = 15 * 60;
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;
+const PASSWORD_RESET_TOKEN_TTL_SECONDS = 30 * 60;
+
+const PASSWORD_RESET_RESPONSE =
+  'Se existir uma conta associada a este e-mail, enviaremos as instruções de recuperação.';
+
+const INVALID_PASSWORD_RESET_TOKEN =
+  'O link de recuperação é inválido ou expirou. Solicite uma nova recuperação de senha.';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -58,6 +69,176 @@ export class AuthService implements OnModuleInit {
     await this.writeAudit(admin.id, 'AUTH_LOGIN_SUCCESS', 'AdminUser', admin.id);
 
     return result;
+  }
+
+  async requestPasswordReset(
+    emailValue: string,
+    ip?: string,
+  ): Promise<{ message: string }> {
+    const email = emailValue.trim().toLowerCase();
+    await this.assertPasswordResetAllowed(email, ip);
+
+    const admin = await this.repository.findAdminByEmail(email);
+
+    if (!admin?.active) {
+      this.logger.child('seguranca').info(
+        { emailHash: this.hashIdentifier(email) },
+        'Recuperação de senha solicitada para conta inexistente ou inativa',
+      );
+      return { message: PASSWORD_RESET_RESPONSE };
+    }
+
+    const tokenId = randomUUID();
+    const signature = this.passwordResetSignature(tokenId, admin.id);
+    const signatureHash = await this.passwords.hash(signature);
+    const resetKey = this.passwordResetTokenKey(tokenId);
+    const activeKey = this.passwordResetActiveKey(admin.id);
+    const resetValue = JSON.stringify({
+      adminUserId: admin.id,
+      signatureHash,
+    });
+
+    try {
+      const previousTokenId = await this.redis.connection.get(activeKey);
+      const transaction = this.redis.connection.multi();
+
+      if (previousTokenId) {
+        transaction.del(this.passwordResetTokenKey(previousTokenId));
+      }
+
+      transaction.set(resetKey, resetValue, 'EX', PASSWORD_RESET_TOKEN_TTL_SECONDS);
+      transaction.set(activeKey, tokenId, 'EX', PASSWORD_RESET_TOKEN_TTL_SECONDS);
+      await transaction.exec();
+
+      await this.prisma.outboxEvent.create({
+        data: {
+          eventName: 'admin.password-reset.requested',
+          aggregateType: 'AdminUser',
+          aggregateId: admin.id,
+          correlationId: randomUUID(),
+          payload: {
+            adminUserId: admin.id,
+            tokenId,
+            email: admin.email,
+          } satisfies Prisma.JsonObject,
+        },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorAdminId: null,
+          action: 'AUTH_PASSWORD_RESET_REQUESTED',
+          resourceType: 'AdminUser',
+          resourceId: admin.id,
+          ipHash: ip ? this.hashIdentifier(ip) : null,
+        },
+      }).catch(() => undefined);
+
+      this.logger.child('seguranca').info(
+        { adminId: admin.id },
+        'Recuperação de senha administrativa solicitada',
+      );
+    } catch (error) {
+      await Promise.all([
+        this.deleteRedisValueIfMatches(resetKey, resetValue),
+        this.deleteRedisValueIfMatches(activeKey, tokenId),
+      ]);
+
+      this.logger.child('seguranca').error(
+        {
+          adminId: admin.id,
+          erro: error instanceof Error ? error.message : String(error),
+        },
+        'Falha ao preparar recuperação de senha administrativa',
+      );
+    }
+
+    return { message: PASSWORD_RESET_RESPONSE };
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const parsed = this.parsePasswordResetToken(token);
+    if (!parsed) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const resetKey = this.passwordResetTokenKey(parsed.tokenId);
+
+    let resetValue: string | null = null;
+    try {
+      resetValue = await this.redis.connection.get(resetKey);
+    } catch {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    if (!resetValue) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const resetEntry = this.parsePasswordResetEntry(resetValue);
+    if (!resetEntry) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const validSignature = await this.passwords.verify(
+      resetEntry.signatureHash,
+      parsed.signature,
+    );
+    if (!validSignature) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const account = await this.repository.findAdminById(resetEntry.adminUserId);
+
+    if (!account?.active) {
+      await this.deleteRedisValueIfMatches(resetKey, resetValue);
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const samePassword = await this.passwords.verify(account.passwordHash, newPassword);
+    if (samePassword) {
+      throw new BadRequestException('A nova senha deve ser diferente da senha atual.');
+    }
+
+    const passwordHash = await this.passwords.hash(newPassword);
+    const consumed = await this.deleteRedisValueIfMatches(resetKey, resetValue);
+
+    if (!consumed) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    await this.repository.updatePassword({
+      adminUserId: account.id,
+      passwordHash,
+      mustChangePassword: false,
+    });
+    await this.repository.revokeAllSessions(account.id, new Date());
+
+    await this.deleteRedisValueIfMatches(
+      this.passwordResetActiveKey(account.id),
+      parsed.tokenId,
+    );
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorAdminId: null,
+        action: 'AUTH_PASSWORD_RESET_COMPLETED',
+        resourceType: 'AdminUser',
+        resourceId: account.id,
+      },
+    }).catch(() => undefined);
+
+    this.logger.child('seguranca').warn(
+      { adminId: account.id },
+      'Senha administrativa redefinida por recuperação',
+    );
+
+    return {
+      message: 'Senha redefinida com sucesso. Entre novamente com a nova senha.',
+    };
   }
 
   async refresh(refreshToken: string) {
@@ -184,6 +365,101 @@ export class AuthService implements OnModuleInit {
     };
   }
 
+  private parsePasswordResetToken(
+    token: string,
+  ): { tokenId: string; signature: string } | null {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+
+    const [tokenId, signature] = parts;
+    if (
+      !tokenId ||
+      !signature ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tokenId) ||
+      !/^[A-Za-z0-9_-]{43}$/.test(signature)
+    ) {
+      return null;
+    }
+
+    return { tokenId, signature };
+  }
+
+  private parsePasswordResetEntry(
+    value: string | null,
+  ): { adminUserId: string; signatureHash: string } | null {
+    if (!value) return null;
+
+    try {
+      const parsed = JSON.parse(value) as {
+        adminUserId?: unknown;
+        signatureHash?: unknown;
+      };
+
+      if (
+        typeof parsed.adminUserId !== 'string' ||
+        typeof parsed.signatureHash !== 'string' ||
+        !parsed.adminUserId ||
+        !parsed.signatureHash.startsWith('$argon2')
+      ) {
+        return null;
+      }
+
+      return {
+        adminUserId: parsed.adminUserId,
+        signatureHash: parsed.signatureHash,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private passwordResetSignature(tokenId: string, adminUserId: string): string {
+    return createHmac('sha256', this.passwordResetSecret())
+      .update(`admin-password-reset:${tokenId}:${adminUserId}`)
+      .digest('base64url');
+  }
+
+  private passwordResetSecret(): string {
+    const configured = process.env.PASSWORD_RESET_TOKEN_SECRET?.trim();
+    if (configured && !configured.startsWith('gere-')) return configured;
+
+    const fallback = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!fallback || fallback.length < 32 || fallback.startsWith('gere-')) {
+      throw new Error(
+        'PASSWORD_RESET_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
+      );
+    }
+    return fallback;
+  }
+
+  private passwordResetTokenKey(tokenId: string): string {
+    return `auth:admin:recuperacao:token:${tokenId}`;
+  }
+
+  private passwordResetActiveKey(adminUserId: string): string {
+    return `auth:admin:recuperacao:ativo:${adminUserId}`;
+  }
+
+  private async deleteRedisValueIfMatches(key: string, expectedValue: string): Promise<boolean> {
+    try {
+      const deleted = await this.redis.connection.eval(
+        `
+          if redis.call('GET', KEYS[1]) == ARGV[1] then
+            return redis.call('DEL', KEYS[1])
+          end
+          return 0
+        `,
+        1,
+        key,
+        expectedValue,
+      );
+
+      return Number(deleted) === 1;
+    } catch {
+      return false;
+    }
+  }
+
   private generateCsrfToken(): string {
     return randomBytes(32).toString('base64url');
   }
@@ -203,6 +479,12 @@ export class AuthService implements OnModuleInit {
     return `auth:admin:tentativas:${this.hashIdentifier(`${email}:${ip ?? 'sem-ip'}`)}`;
   }
 
+  private passwordResetAttemptKey(email: string, ip?: string): string {
+    return `auth:admin:recuperacao:tentativas:${this.hashIdentifier(
+      `${email}:${ip ?? 'sem-ip'}`,
+    )}`;
+  }
+
   private async assertLoginAllowed(email: string, ip?: string): Promise<void> {
     try {
       const value = await this.redis.connection.get(this.attemptKey(email, ip));
@@ -215,6 +497,27 @@ export class AuthService implements OnModuleInit {
     } catch (error) {
       if (error instanceof HttpException) throw error;
       this.logger.child('seguranca').warn('Rate limit de login indisponível; autenticação seguirá com os demais controles.');
+    }
+  }
+
+  private async assertPasswordResetAllowed(email: string, ip?: string): Promise<void> {
+    try {
+      const key = this.passwordResetAttemptKey(email, ip);
+      const count = await this.redis.connection.incr(key);
+      if (count === 1) {
+        await this.redis.connection.expire(key, PASSWORD_RESET_WINDOW_SECONDS);
+      }
+      if (count > PASSWORD_RESET_MAX_ATTEMPTS) {
+        throw new HttpException(
+          'Muitas solicitações de recuperação. Aguarde alguns minutos e tente novamente.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.logger.child('seguranca').warn(
+        'Rate limit de recuperação de senha indisponível; a solicitação seguirá sem revelar a existência da conta.',
+      );
     }
   }
 

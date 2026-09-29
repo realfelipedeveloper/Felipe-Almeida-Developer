@@ -23,7 +23,9 @@ import type { AdminRequest } from './auth.request';
 import { CsrfGuard } from './csrf.guard';
 import { CurrentAdmin } from './current-admin.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 interface SessionResult {
   admin: AuthenticatedAdmin;
@@ -55,6 +57,27 @@ export class AuthController {
     );
     this.writeSessionCookies(response, result);
     return { admin: result.admin };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Solicita recuperação da senha administrativa sem revelar a existência da conta',
+  })
+  requestPasswordReset(
+    @Body() body: ForgotPasswordDto,
+    @Req() request: AdminRequest,
+  ) {
+    return this.auth.requestPasswordReset(body.email, request.ip);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Redefine a senha administrativa usando um token temporário de uso único',
+  })
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.auth.resetPassword(body.token, body.newPassword);
   }
 
   @Post('refresh')

@@ -110,6 +110,11 @@ export class RabbitConnection {
       'newsletter.confirmation.requested',
     );
     await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'newsletter.confirmed');
+    await channel.bindQueue(
+      NOTIFICATION_QUEUE,
+      EVENTS_EXCHANGE,
+      'admin.password-reset.requested',
+    );
 
     /**
      * Mantemos os nomes das filas já existentes para não quebrar ambientes

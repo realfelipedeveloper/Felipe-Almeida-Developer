@@ -56,6 +56,14 @@ const copy = {
   },
 } satisfies Record<PublicLocale, Record<string, string>>;
 
+const passwordResetCopy = {
+  subject: 'Recuperação de senha administrativa',
+  title: 'Redefina sua senha.',
+  text:
+    'Recebemos uma solicitação para redefinir a senha do painel administrativo. O link abaixo é válido por 30 minutos e pode ser usado apenas uma vez. Se você não solicitou esta alteração, ignore esta mensagem.',
+  button: 'Redefinir senha',
+};
+
 export class NotificationConsumer {
   private readonly email = new EmailSender();
   private readonly whatsapp = new WhatsAppSender();
@@ -92,6 +100,8 @@ export class NotificationConsumer {
         await this.handleConfirmation(event.payload);
       } else if (event.eventName === 'newsletter.confirmed') {
         await this.handleWelcome(event.payload);
+      } else if (event.eventName === 'admin.password-reset.requested') {
+        await this.handlePasswordReset(event.payload);
       }
 
       await this.prisma.processedEvent.create({
@@ -213,6 +223,32 @@ export class NotificationConsumer {
     });
   }
 
+  private async handlePasswordReset(payload: Record<string, unknown>): Promise<void> {
+    const email = String(payload.email ?? '');
+    const adminUserId = String(payload.adminUserId ?? '');
+    const tokenId = String(payload.tokenId ?? '');
+
+    if (!email || !adminUserId || !tokenId) {
+      throw new Error('Evento de recuperação de senha inválido.');
+    }
+
+    const token = this.derivePasswordResetToken(tokenId, adminUserId);
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/admin/redefinir-senha?token=${encodeURIComponent(token)}`;
+
+    await this.email.send({
+      to: email,
+      subject: passwordResetCopy.subject,
+      text: `${passwordResetCopy.text}\n\n${url}`,
+      html: this.layout(
+        passwordResetCopy.title,
+        passwordResetCopy.text,
+        passwordResetCopy.button,
+        url,
+      ),
+    });
+  }
+
   private deriveToken(
     tokenId: string,
     subscriberId: string,
@@ -232,6 +268,26 @@ export class NotificationConsumer {
 
     const signature = createHmac('sha256', secret)
       .update(`${tokenId}:${subscriberId}:${purpose}`)
+      .digest('base64url');
+
+    return `${tokenId}.${signature}`;
+  }
+
+  private derivePasswordResetToken(tokenId: string, adminUserId: string): string {
+    const configured = process.env.PASSWORD_RESET_TOKEN_SECRET?.trim();
+    const secret =
+      configured && !configured.startsWith('gere-')
+        ? configured
+        : process.env.JWT_REFRESH_SECRET?.trim();
+
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
+      throw new Error(
+        'PASSWORD_RESET_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
+      );
+    }
+
+    const signature = createHmac('sha256', secret)
+      .update(`admin-password-reset:${tokenId}:${adminUserId}`)
       .digest('base64url');
 
     return `${tokenId}.${signature}`;
