@@ -2,22 +2,25 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from './infra/logger.js';
 import { RabbitConnection } from './infra/rabbitmq.js';
 import { AuditConsumer } from './services/audit-consumer.js';
+import { NotificationConsumer } from './services/notification-consumer.js';
 import { OutboxDispatcher } from './services/outbox-dispatcher.js';
 
 const prisma = new PrismaClient();
 const rabbit = new RabbitConnection();
 const outbox = new OutboxDispatcher(prisma, rabbit);
-const consumer = new AuditConsumer(prisma, rabbit);
+const auditConsumer = new AuditConsumer(prisma, rabbit);
+const notificationConsumer = new NotificationConsumer(prisma, rabbit);
 
 async function bootstrap(): Promise<void> {
   await prisma.$connect();
   await rabbit.connect();
-  await consumer.start();
+  await auditConsumer.start();
+  await notificationConsumer.start();
   outbox.start();
 
   logger.info(
     { categoria: 'app' },
-    'Worker iniciado: publicação da outbox e consumidor idempotente de auditoria estão ativos.',
+    'Worker iniciado: outbox, auditoria e notificações assíncronas estão ativos.',
   );
 }
 
@@ -34,7 +37,10 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 bootstrap().catch(async (error) => {
   logger.fatal(
-    { categoria: 'app', erro: error instanceof Error ? error.message : String(error) },
+    {
+      categoria: 'app',
+      erro: error instanceof Error ? error.message : String(error),
+    },
     'Falha ao iniciar o worker',
   );
   await prisma.$disconnect().catch(() => undefined);
