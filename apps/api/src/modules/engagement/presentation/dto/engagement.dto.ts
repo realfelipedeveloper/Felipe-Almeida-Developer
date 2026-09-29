@@ -39,6 +39,15 @@ export class ContactMessageDto {
   @IsString()
   @MaxLength(240)
   website?: string;
+
+  /**
+   * Token do Cloudflare Turnstile.
+   * Só é obrigatório funcionalmente quando TURNSTILE_SECRET_KEY está configurada.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_048)
+  turnstileToken?: string;
 }
 
 export class NewsletterSubscribeDto {
@@ -53,6 +62,11 @@ export class NewsletterSubscribeDto {
   @IsString()
   @MaxLength(240)
   website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_048)
+  turnstileToken?: string;
 }
 
 export class NewsletterTokenDto {

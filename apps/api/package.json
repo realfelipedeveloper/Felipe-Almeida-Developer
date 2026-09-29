@@ -1,6 +1,6 @@
 {
   "name": "@fad/api",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "dev": "node ../../infra/scripts/run-with-env.mjs nest start --watch",
@@ -9,7 +9,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --passWithNoTests",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "db:generate": "node ../../infra/scripts/run-with-env.mjs prisma generate --schema prisma/schema.prisma",
     "db:validate": "node ../../infra/scripts/run-with-env.mjs prisma validate --schema prisma/schema.prisma",
     "db:migrate:dev": "node ../../infra/scripts/run-with-env.mjs prisma migrate dev --schema prisma/schema.prisma",
