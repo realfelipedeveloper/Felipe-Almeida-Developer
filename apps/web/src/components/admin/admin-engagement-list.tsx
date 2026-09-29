@@ -1,10 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
+import {
+  adminFetch,
+  AdminApiError,
+} from '@/lib/admin/admin-api';
+import {
+  AdminFeedbackModal,
+  AdminModal,
+} from './admin-modal';
 
-type ContactStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'SPAM';
-type NewsletterStatus = 'PENDING' | 'ACTIVE' | 'UNSUBSCRIBED' | 'BOUNCED';
+type ContactStatus =
+  | 'NEW'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'SPAM';
+
+type NewsletterStatus =
+  | 'PENDING'
+  | 'ACTIVE'
+  | 'UNSUBSCRIBED'
+  | 'BOUNCED';
 
 interface ContactRow {
   id: string;
@@ -26,6 +42,8 @@ interface SubscriberRow {
   createdAt: string;
 }
 
+type EngagementRow = ContactRow | SubscriberRow;
+
 const contactStatuses: ContactStatus[] = [
   'NEW',
   'IN_PROGRESS',
@@ -40,29 +58,45 @@ const newsletterStatuses: NewsletterStatus[] = [
   'BOUNCED',
 ];
 
+function formatDate(value: string | null) {
+  if (!value) return 'Não informado';
+  return new Date(value).toLocaleString('pt-BR');
+}
+
 export function AdminEngagementList({
   kind,
 }: {
   kind: 'contacts' | 'newsletter';
 }) {
-  const [rows, setRows] = useState<Array<ContactRow | SubscriberRow>>([]);
-  const [error, setError] = useState('');
+  const [rows, setRows] = useState<EngagementRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] =
+    useState<EngagementRow | null>(null);
+  const [status, setStatus] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    variant: 'success' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
 
   async function load() {
     setLoading(true);
-    setError('');
+
     try {
-      const data = await adminFetch<Array<ContactRow | SubscriberRow>>(
+      const data = await adminFetch<EngagementRow[]>(
         `/api/admin/engagement/${kind}`,
       );
       setRows(data);
     } catch (cause) {
-      setError(
-        cause instanceof AdminApiError
-          ? cause.message
-          : 'Não foi possível carregar os dados.',
-      );
+      setFeedback({
+        variant: 'error',
+        title: 'Não foi possível carregar os dados.',
+        message:
+          cause instanceof AdminApiError
+            ? cause.message
+            : 'Não foi possível carregar os dados.',
+      });
     } finally {
       setLoading(false);
     }
@@ -72,106 +106,326 @@ export function AdminEngagementList({
     void load();
   }, [kind]);
 
-  async function updateStatus(id: string, status: string) {
+  function openRow(row: EngagementRow) {
+    setSelected(row);
+    setStatus(row.status);
+  }
+
+  async function saveStatus() {
+    if (!selected) return;
+
+    setSaving(true);
+
     try {
-      await adminFetch(`/api/admin/engagement/${kind}/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
-      await load();
-    } catch (cause) {
-      setError(
-        cause instanceof AdminApiError
-          ? cause.message
-          : 'Não foi possível atualizar o status.',
+      await adminFetch(
+        `/api/admin/engagement/${kind}/${selected.id}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        },
       );
+
+      setSelected(null);
+      await load();
+      setFeedback({
+        variant: 'success',
+        title: 'Status atualizado.',
+        message:
+          kind === 'contacts'
+            ? 'O status do contato foi atualizado com sucesso.'
+            : 'O status do inscrito foi atualizado com sucesso.',
+      });
+    } catch (cause) {
+      setFeedback({
+        variant: 'error',
+        title: 'Não foi possível atualizar o status.',
+        message:
+          cause instanceof AdminApiError
+            ? cause.message
+            : 'Não foi possível atualizar o status.',
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-zinc-500">Carregando…</p>;
+    return (
+      <p className="text-sm text-zinc-500">Carregando…</p>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {error ? (
-        <p className="rounded-xl border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-300">
-          {error}
-        </p>
-      ) : null}
+    <>
+      <div className="space-y-3">
+        {!rows.length ? (
+          <div className="site-panel p-6 text-sm text-zinc-500">
+            Nenhum registro encontrado.
+          </div>
+        ) : null}
 
-      {!rows.length ? (
-        <div className="site-panel p-6 text-sm text-zinc-500">
-          Nenhum registro encontrado.
-        </div>
-      ) : null}
+        {rows.map((row) => {
+          if (kind === 'contacts') {
+            const contact = row as ContactRow;
 
-      {rows.map((row) => {
-        if (kind === 'contacts') {
-          const contact = row as ContactRow;
-          return (
-            <article key={contact.id} className="site-panel p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
+            return (
+              <article
+                key={contact.id}
+                className="site-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
                   <p className="eyebrow">
-                    {new Date(contact.createdAt).toLocaleString('pt-BR')}
+                    {formatDate(contact.createdAt)}
                   </p>
-                  <h2 className="mt-3 text-lg font-bold">{contact.subject}</h2>
-                  <p className="mt-1 text-sm text-zinc-400">
+                  <h2 className="mt-2 truncate text-lg font-bold">
+                    {contact.subject}
+                  </h2>
+                  <p className="mt-1 truncate text-sm text-zinc-400">
                     {contact.name} · {contact.email}
                   </p>
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-zinc-300">
-                    {contact.message}
+                  <p className="mt-2 text-xs font-semibold text-zinc-500">
+                    Status: {contact.status}
                   </p>
                 </div>
 
-                <select
-                  value={contact.status}
-                  onChange={(event) =>
-                    void updateStatus(contact.id, event.target.value)
-                  }
-                  className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs"
+                <button
+                  type="button"
+                  onClick={() => openRow(contact)}
+                  className="shrink-0 rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-zinc-200"
                 >
-                  {contactStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </article>
-          );
-        }
+                  Visualizar
+                </button>
+              </article>
+            );
+          }
 
-        const subscriber = row as SubscriberRow;
-        return (
-          <article key={subscriber.id} className="site-panel p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold">{subscriber.email}</p>
+          const subscriber = row as SubscriberRow;
+
+          return (
+            <article
+              key={subscriber.id}
+              className="site-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-semibold">
+                  {subscriber.email}
+                </p>
                 <p className="mt-1 text-xs text-zinc-500">
                   {subscriber.locale} ·{' '}
-                  {new Date(subscriber.createdAt).toLocaleString('pt-BR')}
+                  {formatDate(subscriber.createdAt)}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-zinc-500">
+                  Status: {subscriber.status}
                 </p>
               </div>
 
-              <select
-                value={subscriber.status}
-                onChange={(event) =>
-                  void updateStatus(subscriber.id, event.target.value)
-                }
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs"
+              <button
+                type="button"
+                onClick={() => openRow(subscriber)}
+                className="shrink-0 rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-zinc-200"
               >
-                {newsletterStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </article>
-        );
-      })}
+                Visualizar
+              </button>
+            </article>
+          );
+        })}
+      </div>
+
+      <AdminModal
+        open={Boolean(selected)}
+        onClose={() => {
+          if (!saving) setSelected(null);
+        }}
+        eyebrow={
+          kind === 'contacts'
+            ? 'ADMIN / CONTATOS'
+            : 'ADMIN / NEWSLETTER'
+        }
+        title={
+          kind === 'contacts'
+            ? 'Visualizar contato'
+            : 'Visualizar inscrito'
+        }
+        description="Os dados e campos de manutenção deste registro ficam concentrados no modal."
+        size="md"
+        closeOnBackdrop={!saving}
+        closeOnEscape={!saving}
+      >
+        {selected && kind === 'contacts' ? (
+          <ContactFields
+            contact={selected as ContactRow}
+            status={status as ContactStatus}
+            onStatusChange={setStatus}
+          />
+        ) : null}
+
+        {selected && kind === 'newsletter' ? (
+          <SubscriberFields
+            subscriber={selected as SubscriberRow}
+            status={status as NewsletterStatus}
+            onStatusChange={setStatus}
+          />
+        ) : null}
+
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setSelected(null)}
+            className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold disabled:opacity-50"
+          >
+            Fechar
+          </button>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void saveStatus()}
+            className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-zinc-950 disabled:opacity-50"
+          >
+            {saving ? 'Salvando…' : 'Salvar status'}
+          </button>
+        </div>
+      </AdminModal>
+
+      <AdminFeedbackModal
+        open={Boolean(feedback)}
+        onClose={() => setFeedback(null)}
+        variant={feedback?.variant ?? 'success'}
+        title={feedback?.title}
+        message={feedback?.message ?? ''}
+      />
+    </>
+  );
+}
+
+function ContactFields({
+  contact,
+  status,
+  onStatusChange,
+}: {
+  contact: ContactRow;
+  status: ContactStatus;
+  onStatusChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <ReadOnlyField label="Nome" value={contact.name} />
+      <ReadOnlyField label="E-mail" value={contact.email} />
+      <ReadOnlyField
+        label="Assunto"
+        value={contact.subject}
+        full
+      />
+      <ReadOnlyField
+        label="Recebido em"
+        value={formatDate(contact.createdAt)}
+      />
+
+      <label className="text-sm font-semibold">
+        Status
+        <select
+          value={status}
+          onChange={(event) =>
+            onStatusChange(event.target.value)
+          }
+          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal"
+        >
+          {contactStatuses.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="text-sm font-semibold md:col-span-2">
+        Mensagem
+        <textarea
+          readOnly
+          rows={8}
+          value={contact.message}
+          className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal leading-7 text-zinc-300"
+        />
+      </label>
     </div>
+  );
+}
+
+function SubscriberFields({
+  subscriber,
+  status,
+  onStatusChange,
+}: {
+  subscriber: SubscriberRow;
+  status: NewsletterStatus;
+  onStatusChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <ReadOnlyField
+        label="E-mail"
+        value={subscriber.email}
+        full
+      />
+      <ReadOnlyField
+        label="Idioma"
+        value={subscriber.locale}
+      />
+      <ReadOnlyField
+        label="Cadastro"
+        value={formatDate(subscriber.createdAt)}
+      />
+      <ReadOnlyField
+        label="Confirmação"
+        value={formatDate(subscriber.confirmedAt)}
+      />
+      <ReadOnlyField
+        label="Cancelamento"
+        value={formatDate(subscriber.unsubscribedAt)}
+      />
+
+      <label className="text-sm font-semibold md:col-span-2">
+        Status
+        <select
+          value={status}
+          onChange={(event) =>
+            onStatusChange(event.target.value)
+          }
+          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal"
+        >
+          {newsletterStatuses.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  full = false,
+}: {
+  label: string;
+  value: string;
+  full?: boolean;
+}) {
+  return (
+    <label
+      className={`text-sm font-semibold ${
+        full ? 'md:col-span-2' : ''
+      }`}
+    >
+      {label}
+      <input
+        readOnly
+        value={value}
+        className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal text-zinc-300"
+      />
+    </label>
   );
 }
