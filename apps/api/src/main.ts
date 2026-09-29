@@ -1,7 +1,10 @@
 import 'reflect-metadata';
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
+
 import { AppModule } from './app.module';
 import { AppLogger } from './infra/logging/app-logger.service';
 
@@ -13,12 +16,10 @@ async function bootstrap() {
   const port = Number(process.env.API_PORT ?? 3333);
   const webUrl = process.env.WEB_URL ?? 'http://localhost:3000';
 
+  app.use(cookieParser());
   app.enableShutdownHooks();
   app.setGlobalPrefix('api');
-  app.enableCors({
-    origin: [webUrl],
-    credentials: true,
-  });
+  app.enableCors({ origin: [webUrl], credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -30,7 +31,7 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Felipe Almeida Developer API')
     .setDescription('API do portfólio profissional com NestJS, PostgreSQL/Prisma, Redis e RabbitMQ.')
-    .setVersion('0.4.0')
+    .setVersion('0.6.0')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);

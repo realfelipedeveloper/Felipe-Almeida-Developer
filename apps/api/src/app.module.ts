@@ -9,6 +9,8 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { NewsModule } from './modules/news/news.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -21,10 +23,12 @@ import { NewsModule } from './modules/news/news.module';
     ProjectsModule,
     ArticlesModule,
     NewsModule,
+    AuthModule,
+    AdminModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware).forRoutes('{*path}');
   }
 }
