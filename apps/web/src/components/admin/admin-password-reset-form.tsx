@@ -92,8 +92,8 @@ export function AdminPasswordResetForm({
         title="Redefinir senha"
         description="Defina uma nova senha para a conta administrativa. O link de recuperação expira em 30 minutos e pode ser utilizado apenas uma vez."
         size="sm"
-        closeOnBackdrop={!saving}
-        closeOnEscape={!saving}
+        closeOnBackdrop={false}
+        closeOnEscape={false}
       >
         <form
           onSubmit={submit}
