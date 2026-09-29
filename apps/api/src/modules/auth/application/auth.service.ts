@@ -89,8 +89,14 @@ export class AuthService implements OnModuleInit {
     }
 
     const tokenId = randomUUID();
+    const signature = this.passwordResetSignature(tokenId, admin.id);
+    const signatureHash = await this.passwords.hash(signature);
     const resetKey = this.passwordResetTokenKey(tokenId);
     const activeKey = this.passwordResetActiveKey(admin.id);
+    const resetValue = JSON.stringify({
+      adminUserId: admin.id,
+      signatureHash,
+    });
 
     try {
       const previousTokenId = await this.redis.connection.get(activeKey);
@@ -100,7 +106,7 @@ export class AuthService implements OnModuleInit {
         transaction.del(this.passwordResetTokenKey(previousTokenId));
       }
 
-      transaction.set(resetKey, admin.id, 'EX', PASSWORD_RESET_TOKEN_TTL_SECONDS);
+      transaction.set(resetKey, resetValue, 'EX', PASSWORD_RESET_TOKEN_TTL_SECONDS);
       transaction.set(activeKey, tokenId, 'EX', PASSWORD_RESET_TOKEN_TTL_SECONDS);
       await transaction.exec();
 
@@ -134,7 +140,7 @@ export class AuthService implements OnModuleInit {
       );
     } catch (error) {
       await Promise.all([
-        this.deleteRedisValueIfMatches(resetKey, admin.id),
+        this.deleteRedisValueIfMatches(resetKey, resetValue),
         this.deleteRedisValueIfMatches(activeKey, tokenId),
       ]);
 
@@ -161,25 +167,34 @@ export class AuthService implements OnModuleInit {
 
     const resetKey = this.passwordResetTokenKey(parsed.tokenId);
 
-    let adminUserId: string | null = null;
+    let resetValue: string | null = null;
     try {
-      adminUserId = await this.redis.connection.get(resetKey);
+      resetValue = await this.redis.connection.get(resetKey);
     } catch {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
     }
 
-    if (!adminUserId || !this.validPasswordResetSignature(
-      parsed.tokenId,
-      adminUserId,
-      parsed.signature,
-    )) {
+    if (!resetValue) {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
     }
 
-    const account = await this.repository.findAdminById(adminUserId);
+    const resetEntry = this.parsePasswordResetEntry(resetValue);
+    if (!resetEntry) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const validSignature = await this.passwords.verify(
+      resetEntry.signatureHash,
+      parsed.signature,
+    );
+    if (!validSignature) {
+      throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
+    }
+
+    const account = await this.repository.findAdminById(resetEntry.adminUserId);
 
     if (!account?.active) {
-      await this.deleteRedisValueIfMatches(resetKey, adminUserId);
+      await this.deleteRedisValueIfMatches(resetKey, resetValue);
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
     }
 
@@ -189,7 +204,7 @@ export class AuthService implements OnModuleInit {
     }
 
     const passwordHash = await this.passwords.hash(newPassword);
-    const consumed = await this.deleteRedisValueIfMatches(resetKey, account.id);
+    const consumed = await this.deleteRedisValueIfMatches(resetKey, resetValue);
 
     if (!consumed) {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
@@ -369,19 +384,33 @@ export class AuthService implements OnModuleInit {
     return { tokenId, signature };
   }
 
-  private validPasswordResetSignature(
-    tokenId: string,
-    adminUserId: string,
-    signature: string,
-  ): boolean {
-    const expected = this.passwordResetSignature(tokenId, adminUserId);
-    const receivedBuffer = Buffer.from(signature);
-    const expectedBuffer = Buffer.from(expected);
+  private parsePasswordResetEntry(
+    value: string | null,
+  ): { adminUserId: string; signatureHash: string } | null {
+    if (!value) return null;
 
-    return (
-      receivedBuffer.length === expectedBuffer.length &&
-      timingSafeEqual(receivedBuffer, expectedBuffer)
-    );
+    try {
+      const parsed = JSON.parse(value) as {
+        adminUserId?: unknown;
+        signatureHash?: unknown;
+      };
+
+      if (
+        typeof parsed.adminUserId !== 'string' ||
+        typeof parsed.signatureHash !== 'string' ||
+        !parsed.adminUserId ||
+        !parsed.signatureHash.startsWith('$argon2')
+      ) {
+        return null;
+      }
+
+      return {
+        adminUserId: parsed.adminUserId,
+        signatureHash: parsed.signatureHash,
+      };
+    } catch {
+      return null;
+    }
   }
 
   private passwordResetSignature(tokenId: string, adminUserId: string): string {
