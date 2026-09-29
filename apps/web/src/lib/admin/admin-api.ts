@@ -29,7 +29,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => null) as { message?: string | string[] } | null;
   if (!response.ok) {
     const raw = body?.message;
-    const message = Array.isArray(raw) ? raw.join(' ') : raw ?? 'Falha ao comunicar com a API administrativa.';
+    const message = Array.isArray(raw)
+      ? raw.join(' ')
+      : raw ?? 'Falha ao comunicar com a API administrativa.';
     throw new AdminApiError(message, response.status);
   }
   return body as T;
@@ -54,9 +56,10 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-async function tryRefresh(): Promise<boolean> {
+async function performRefresh(): Promise<boolean> {
   const csrf = cookieValue('fad_admin_csrf');
   if (!csrf) return false;
+
   const response = await fetch(`${API_BASE_URL}/api/admin/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
@@ -66,13 +69,34 @@ async function tryRefresh(): Promise<boolean> {
       'x-csrf-token': csrf,
     },
   });
+
   return response.ok;
+}
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = performRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+
+  return refreshInFlight;
 }
 
 export async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response = await request(path, init);
-  if (response.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
-    if (await tryRefresh()) response = await request(path, init);
+
+  if (
+    response.status === 401 &&
+    !path.includes('/auth/login') &&
+    !path.includes('/auth/refresh')
+  ) {
+    if (await tryRefresh()) {
+      response = await request(path, init);
+    }
   }
+
   return parseResponse<T>(response);
 }
