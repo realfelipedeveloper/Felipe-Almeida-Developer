@@ -2,8 +2,10 @@ import {
   ForbiddenException,
   type ExecutionContext,
 } from '@nestjs/common';
+import { AuthController } from './auth.controller';
 import { CsrfGuard } from './csrf.guard';
 import { PasswordReadyGuard } from './password-ready.guard';
+import { ADMIN_ROLES_KEY } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
 function contextFor(request: Record<string, unknown>): ExecutionContext {
@@ -84,6 +86,15 @@ describe('guards de segurança administrativa', () => {
       };
 
       expect(guard.canActivate(contextFor(request))).toBe(true);
+    });
+
+    it('restringe logout global ao SUPER_ADMIN', () => {
+      expect(
+        Reflect.getMetadata(
+          ADMIN_ROLES_KEY,
+          AuthController.prototype.logoutAll,
+        ),
+      ).toEqual(['SUPER_ADMIN']);
     });
   });
 

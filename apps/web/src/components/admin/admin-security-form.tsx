@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   adminFetch,
   AdminApiError,
+  type AdminIdentity,
 } from '@/lib/admin/admin-api';
 import {
   AdminConfirmModal,
@@ -19,12 +20,29 @@ export function AdminSecurityForm() {
   const [changeOpen, setChangeOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [canLogoutAll, setCanLogoutAll] = useState(false);
   const [feedback, setFeedback] = useState<{
     variant: 'success' | 'error';
     title: string;
     message: string;
   } | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    let active = true;
+
+    adminFetch<{ admin: AdminIdentity }>('/api/admin/auth/me')
+      .then(({ admin }) => {
+        if (active) setCanLogoutAll(admin.role === 'SUPER_ADMIN');
+      })
+      .catch(() => {
+        if (active) setCanLogoutAll(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -111,7 +129,7 @@ export function AdminSecurityForm() {
           ações protegidas.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <div className={`mt-8 grid gap-4 ${canLogoutAll ? 'md:grid-cols-2' : ''}`}>
           <section className="site-panel p-6">
             <h2 className="text-xl font-bold">Senha administrativa</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
@@ -127,20 +145,22 @@ export function AdminSecurityForm() {
             </button>
           </section>
 
-          <section className="site-panel p-6">
-            <h2 className="text-xl font-bold">Sessões ativas</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Encerre todas as sessões administrativas quando houver
-              necessidade de revogação global.
-            </p>
-            <button
-              type="button"
-              onClick={() => setLogoutOpen(true)}
-              className="mt-5 rounded-xl border border-red-900 px-5 py-3 text-sm font-semibold text-red-300"
-            >
-              Encerrar todas as sessões
-            </button>
-          </section>
+          {canLogoutAll ? (
+            <section className="site-panel p-6">
+              <h2 className="text-xl font-bold">Sessões ativas</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Encerre todas as sessões administrativas quando houver
+                necessidade de revogação global.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLogoutOpen(true)}
+                className="mt-5 rounded-xl border border-red-900 px-5 py-3 text-sm font-semibold text-red-300"
+              >
+                Encerrar todas as sessões
+              </button>
+            </section>
+          ) : null}
         </div>
       </div>
 
