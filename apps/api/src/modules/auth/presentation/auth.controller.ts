@@ -14,6 +14,8 @@ import type { Response } from 'express';
 import { AuthService } from '../application/auth.service';
 import type { AuthenticatedAdmin } from '../application/auth.types';
 import { AdminAuthGuard } from './admin-auth.guard';
+import { AdminRoles } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
 import {
   ADMIN_ACCESS_COOKIE,
   ADMIN_CSRF_COOKIE,
@@ -117,8 +119,9 @@ export class AuthController {
 
   @Post('logout-all')
   @HttpCode(204)
-  @UseGuards(AdminAuthGuard, CsrfGuard)
-  @ApiOperation({ summary: 'Revoga todas as sessões do administrador autenticado' })
+  @AdminRoles('SUPER_ADMIN')
+  @UseGuards(AdminAuthGuard, CsrfGuard, RolesGuard)
+  @ApiOperation({ summary: 'Revoga todas as sessões do administrador superadministrador' })
   async logoutAll(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Res({ passthrough: true }) response: Response,
