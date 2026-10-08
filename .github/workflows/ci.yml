@@ -101,6 +101,12 @@ jobs:
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
 
+      - name: Auditar dependências
+        shell: bash
+        run: |
+          pnpm audit:prod
+          pnpm audit:all
+
       - name: Validar configuração do GitHub
         run: pnpm github:check
 

@@ -17,6 +17,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
+    "audit:prod": "pnpm audit --prod --audit-level=moderate",
+    "audit:all": "pnpm audit --audit-level=critical",
     "quality": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
     "format": "prettier --write .",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up -d",
@@ -46,5 +48,17 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,md,yml,yaml,css}": "prettier --write"
+  },
+  "pnpm": {
+    "overrides": {
+      "next@15.5.27>postcss": "8.5.29",
+      "source-map-js": "1.2.2",
+      "@prisma/config@6.19.0>effect": "3.20.0",
+      "@prisma/config@6.19.0>deepmerge-ts": "8.0.2",
+      "@nestjs/swagger@11.4.7>js-yaml": "5.4.2",
+      "vitest@4.1.11>vite": "6.4.3",
+      "@vitest/mocker@4.1.11>vite": "6.4.3",
+      "ts-jest@29.4.14>handlebars": "4.7.10"
+    }
   }
 }

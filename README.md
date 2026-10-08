@@ -204,6 +204,20 @@ O projeto executa CodeQL em:
 - PRs para `main` e `develop`;
 - execução semanal.
 
+O CI também bloqueia vulnerabilidades moderadas ou superiores na árvore de
+produção e vulnerabilidades críticas nas ferramentas de desenvolvimento:
+
+```bash
+pnpm audit:prod
+pnpm audit:all
+```
+
+Overrides transitivos de segurança ficam declarados no `package.json` com
+versões exatas. Eles existem apenas enquanto Next, Prisma e Nest Swagger não
+publicarem árvores corrigidas e devem ser removidos após a atualização do
+pacote pai. O override de `deepmerge-ts` atravessa uma versão major e exige
+validar geração/validação do Prisma, migrações, banco, testes, build e worker.
+
 
 ## 10. Releases
 
