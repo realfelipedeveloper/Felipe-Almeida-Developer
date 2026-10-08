@@ -7,6 +7,16 @@ const localeMap: Record<Locale, string> = {
   es: 'es-ES',
 };
 
+export function slugify(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function cleanSeedText(value: string | null | undefined, fallback: string) {
   if (!value) return fallback;
 

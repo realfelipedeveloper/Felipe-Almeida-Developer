@@ -312,7 +312,7 @@ export class AdminContentService {
       coverMediaId: body.coverMediaId ?? null,
       readingTimeMinutes: body.readingTimeMinutes ?? null,
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-      publishedAt: body.publishedAt ? new Date(body.publishedAt) : null,
+      publishedAt: this.resolvePublishedAt(body.publicationStatus, body.publishedAt),
       translations: {
         create: body.translations.map((item) => ({
           locale: toPrismaLocale(item.locale),
@@ -340,7 +340,7 @@ export class AdminContentService {
     return {
       publicationStatus: body.publicationStatus,
       coverMediaId: body.coverMediaId ?? null,
-      publishedAt: body.publishedAt ? new Date(body.publishedAt) : null,
+      publishedAt: this.resolvePublishedAt(body.publicationStatus, body.publishedAt),
       translations: {
         create: body.translations.map((item) => ({
           locale: toPrismaLocale(item.locale),
@@ -362,6 +362,11 @@ export class AdminContentService {
 
   private newsUpdateData(body: UpsertNewsAdminDto): Prisma.NewsUncheckedUpdateInput {
     return this.newsBaseData(body);
+  }
+
+  private resolvePublishedAt(status: string, publishedAt?: string | null): Date | null {
+    if (publishedAt) return new Date(publishedAt);
+    return status === 'PUBLISHED' ? new Date() : null;
   }
 
   private async ensureExists(kind: 'project' | 'article' | 'news', id: string): Promise<void> {

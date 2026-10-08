@@ -46,10 +46,10 @@ export default async function ArticlesPage({
         <form action={`/${locale}/artigos`} className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 md:flex-row md:items-end dark:border-slate-800 dark:bg-slate-900/60">
           <label className="flex-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
             {t('filterTag')}
-            <input name="tag" defaultValue={tag} placeholder="clean-code" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
+            <input name="tag" defaultValue={tag} placeholder="Ex.: clean-code" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
           </label>
           <button type="submit" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-950">{t('filterApply')}</button>
-          <Link href={`/${locale}/artigos`} className="rounded-xl border border-slate-300 px-4 py-2.5 text-center text-sm font-bold dark:border-slate-700">{t('filterClear')}</Link>
+          <a href={`/${locale}/artigos`} className="rounded-xl border border-slate-300 px-4 py-2.5 text-center text-sm font-bold dark:border-slate-700">{t('filterClear')}</a>
         </form>
         <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {result.data.length ? result.data.map((article) => (

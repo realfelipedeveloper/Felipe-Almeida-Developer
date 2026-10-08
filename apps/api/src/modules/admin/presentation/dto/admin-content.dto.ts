@@ -13,6 +13,7 @@ import {
   IsString,
   IsUrl,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
   ValidateNested,
@@ -93,7 +94,7 @@ class SeoTranslationDto {
   @IsString() @MaxLength(180)
   title!: string;
 
-  @IsString() @MaxLength(200)
+  @IsString() @MaxLength(200) @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug!: string;
 
   @IsString()
