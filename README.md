@@ -6,15 +6,15 @@ Portfólio profissional com projetos, artigos, notícias, newsletter e contato �
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Front | Next.js (App Router), React, TypeScript, Tailwind, next-intl |
-| Back | NestJS (monólito modular, Clean Architecture/DDD) |
-| Dados | PostgreSQL 16 + Prisma 6, Redis |
-| Mensageria | RabbitMQ |
-| Infra | Docker Compose, Turborepo, pnpm |
-| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD |
-| Testes | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
+| Camada     | Tecnologia                                                              |
+| ---------- | ----------------------------------------------------------------------- |
+| Front      | Next.js (App Router), React, TypeScript, Tailwind, next-intl            |
+| Back       | NestJS (monólito modular, Clean Architecture/DDD)                       |
+| Dados      | PostgreSQL 16 + Prisma 6, Redis                                         |
+| Mensageria | RabbitMQ                                                                |
+| Infra      | Docker Compose, Turborepo, pnpm                                         |
+| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD                                 |
+| Testes     | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
 
 ## Pré-requisitos
 
@@ -218,6 +218,23 @@ publicarem árvores corrigidas e devem ser removidos após a atualização do
 pacote pai. O override de `deepmerge-ts` atravessa uma versão major e exige
 validar geração/validação do Prisma, migrações, banco, testes, build e worker.
 
+Artigos e notícias usam sanitização server-side por allowlist antes da
+persistência. Cada campo aceita no máximo 200 mil caracteres; o limite global
+do corpo HTTP continua definido por `API_BODY_LIMIT`. Para auditar registros
+anteriores sem imprimir o conteúdo:
+
+```bash
+pnpm security:audit-rich-text
+```
+
+Se houver divergências, gere e valide um backup antes da correção. A aplicação
+é irreversível e exige confirmação explícita:
+
+```bash
+RICH_TEXT_BACKUP_CONFIRMED=true \
+RICH_TEXT_SANITIZE_CONFIRM=SANITIZE_RICH_TEXT \
+pnpm security:sanitize-rich-text
+```
 
 ## 10. Releases
 

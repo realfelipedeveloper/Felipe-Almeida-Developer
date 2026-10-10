@@ -35,7 +35,9 @@
     "db:restore": "bash infra/scripts/restore.sh",
     "sdd:check": "node infra/scripts/sdd-check.mjs",
     "github:check": "node infra/scripts/github-check.mjs",
-    "db:check": "pnpm --filter @fad/api db:check"
+    "db:check": "pnpm --filter @fad/api db:check",
+    "security:audit-rich-text": "pnpm --filter @fad/api security:audit-rich-text",
+    "security:sanitize-rich-text": "pnpm --filter @fad/api security:sanitize-rich-text"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",

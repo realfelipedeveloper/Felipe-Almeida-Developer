@@ -1,7 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type Locale } from '@prisma/client';
 import { CacheService } from '../../../infra/redis/cache.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
+import {
+  RICH_TEXT_SANITIZER,
+  type RichTextSanitizer,
+} from '../../../shared/application/rich-text-sanitizer';
 import { toPrismaLocale } from '../../../shared/domain/locale.mapper';
 import type { AuthenticatedAdmin } from '../../auth/application/auth.types';
 import type {
@@ -16,6 +26,8 @@ export class AdminContentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    @Inject(RICH_TEXT_SANITIZER)
+    private readonly richTextSanitizer: RichTextSanitizer,
   ) {}
 
   async dashboard() {
@@ -23,10 +35,14 @@ export class AdminContentService {
       this.prisma.project.count(),
       this.prisma.article.count(),
       this.prisma.news.count(),
-      this.prisma.project.count({ where: { publicationStatus: 'DRAFT' } })
-        .then(async (projectDrafts) => projectDrafts
-          + await this.prisma.article.count({ where: { publicationStatus: 'DRAFT' } })
-          + await this.prisma.news.count({ where: { publicationStatus: 'DRAFT' } })),
+      this.prisma.project
+        .count({ where: { publicationStatus: 'DRAFT' } })
+        .then(
+          async (projectDrafts) =>
+            projectDrafts +
+            (await this.prisma.article.count({ where: { publicationStatus: 'DRAFT' } })) +
+            (await this.prisma.news.count({ where: { publicationStatus: 'DRAFT' } })),
+        ),
       this.prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 10 }),
     ]);
     return { projects, articles, news, drafts, audit };
@@ -291,7 +307,10 @@ export class AdminContentService {
         })),
       },
       technologies: {
-        create: body.technologyIds.map((technologyId, index) => ({ technologyId, sortOrder: index })),
+        create: body.technologyIds.map((technologyId, index) => ({
+          technologyId,
+          sortOrder: index,
+        })),
       },
       tags: { create: body.tagIds.map((tagId) => ({ tagId })) },
     };
@@ -319,7 +338,7 @@ export class AdminContentService {
           title: item.title,
           slug: item.slug,
           summary: item.summary,
-          bodyHtml: item.bodyHtml,
+          bodyHtml: this.sanitizeRequiredRichText(item.bodyHtml, 'artigo'),
           seoTitle: item.seoTitle ?? null,
           seoDescription: item.seoDescription ?? null,
         })),
@@ -347,7 +366,7 @@ export class AdminContentService {
           title: item.title,
           slug: item.slug,
           summary: item.summary,
-          contentHtml: item.contentHtml,
+          contentHtml: this.sanitizeRequiredRichText(item.contentHtml, 'notícia'),
           seoTitle: item.seoTitle ?? null,
           seoDescription: item.seoDescription ?? null,
         })),
@@ -369,12 +388,23 @@ export class AdminContentService {
     return status === 'PUBLISHED' ? new Date() : null;
   }
 
+  private sanitizeRequiredRichText(value: string, resourceLabel: string): string {
+    const sanitized = this.richTextSanitizer.sanitize(value);
+    if (!this.richTextSanitizer.hasMeaningfulContent(sanitized)) {
+      throw new BadRequestException(
+        `O conteúdo do ${resourceLabel} não pode ficar vazio após a sanitização.`,
+      );
+    }
+    return sanitized;
+  }
+
   private async ensureExists(kind: 'project' | 'article' | 'news', id: string): Promise<void> {
-    const row = kind === 'project'
-      ? await this.prisma.project.findUnique({ where: { id }, select: { id: true } })
-      : kind === 'article'
-        ? await this.prisma.article.findUnique({ where: { id }, select: { id: true } })
-        : await this.prisma.news.findUnique({ where: { id }, select: { id: true } });
+    const row =
+      kind === 'project'
+        ? await this.prisma.project.findUnique({ where: { id }, select: { id: true } })
+        : kind === 'article'
+          ? await this.prisma.article.findUnique({ where: { id }, select: { id: true } })
+          : await this.prisma.news.findUnique({ where: { id }, select: { id: true } });
     if (!row) throw new NotFoundException('Conteúdo não encontrado.');
   }
 

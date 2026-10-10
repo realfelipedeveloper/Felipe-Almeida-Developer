@@ -19,6 +19,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ProjectLifecycle, PublicationStatus } from '@prisma/client';
+import { MAX_RICH_TEXT_CHARACTERS } from '../../../../shared/application/rich-text-sanitizer';
 
 const LOCALES = ['pt-BR', 'en', 'es'] as const;
 
@@ -26,10 +27,12 @@ export class ProfileTranslationAdminDto {
   @IsIn(LOCALES)
   locale!: (typeof LOCALES)[number];
 
-  @IsString() @MaxLength(160)
+  @IsString()
+  @MaxLength(160)
   fullName!: string;
 
-  @IsString() @MaxLength(220)
+  @IsString()
+  @MaxLength(220)
   headline!: string;
 
   @IsString()
@@ -38,52 +41,75 @@ export class ProfileTranslationAdminDto {
   @IsString()
   bio!: string;
 
-  @IsOptional() @IsString() @MaxLength(180)
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
   seoTitle?: string | null;
 
-  @IsOptional() @IsString() @MaxLength(320)
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
   seoDescription?: string | null;
 }
 
 export class SocialLinkAdminDto {
-  @IsString() @MaxLength(80)
+  @IsString()
+  @MaxLength(80)
   label!: string;
 
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true }) @MaxLength(500)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(500)
   url!: string;
 
-  @IsOptional() @IsString() @MaxLength(80)
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
   iconKey?: string | null;
 
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   sortOrder?: number;
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   visible?: boolean;
 }
 
 export class UpdateProfileAdminDto {
-  @IsOptional() @IsEmail() @MaxLength(320)
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(320)
   publicEmail?: string | null;
 
-  @IsOptional() @IsString() @MaxLength(160)
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
   publicLocation?: string | null;
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   availableForWork?: boolean;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   avatarMediaId?: string | null;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   resumeMediaId?: string | null;
 
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3)
-  @ValidateNested({ each: true }) @Type(() => ProfileTranslationAdminDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => ProfileTranslationAdminDto)
   translations!: ProfileTranslationAdminDto[];
 
-  @IsArray() @ArrayMaxSize(20)
-  @ValidateNested({ each: true }) @Type(() => SocialLinkAdminDto)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => SocialLinkAdminDto)
   socialLinks!: SocialLinkAdminDto[];
 }
 
@@ -91,19 +117,26 @@ class SeoTranslationDto {
   @IsIn(LOCALES)
   locale!: (typeof LOCALES)[number];
 
-  @IsString() @MaxLength(180)
+  @IsString()
+  @MaxLength(180)
   title!: string;
 
-  @IsString() @MaxLength(200) @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  @IsString()
+  @MaxLength(200)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug!: string;
 
   @IsString()
   summary!: string;
 
-  @IsOptional() @IsString() @MaxLength(180)
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
   seoTitle?: string | null;
 
-  @IsOptional() @IsString() @MaxLength(320)
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
   seoDescription?: string | null;
 }
 
@@ -111,13 +144,16 @@ export class ProjectTranslationAdminDto extends SeoTranslationDto {
   @IsString()
   description!: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   challenges?: string | null;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   solution?: string | null;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   results?: string | null;
 }
 
@@ -131,40 +167,55 @@ export class UpsertProjectAdminDto {
   @IsBoolean()
   featured!: boolean;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   startedAt?: string | null;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   endedAt?: string | null;
 
-  @IsOptional() @IsUrl({ protocols: ['http', 'https'], require_protocol: true }) @MaxLength(500)
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(500)
   repositoryUrl?: string | null;
 
-  @IsOptional() @IsUrl({ protocols: ['http', 'https'], require_protocol: true }) @MaxLength(500)
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(500)
   demoUrl?: string | null;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   coverMediaId?: string | null;
 
-  @IsInt() @Min(0)
+  @IsInt()
+  @Min(0)
   sortOrder!: number;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   publishedAt?: string | null;
 
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3)
-  @ValidateNested({ each: true }) @Type(() => ProjectTranslationAdminDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => ProjectTranslationAdminDto)
   translations!: ProjectTranslationAdminDto[];
 
-  @IsArray() @IsUUID('4', { each: true })
+  @IsArray()
+  @IsUUID('4', { each: true })
   technologyIds!: string[];
 
-  @IsArray() @IsUUID('4', { each: true })
+  @IsArray()
+  @IsUUID('4', { each: true })
   tagIds!: string[];
 }
 
 export class ArticleTranslationAdminDto extends SeoTranslationDto {
   @IsString()
+  @MaxLength(MAX_RICH_TEXT_CHARACTERS)
   bodyHtml!: string;
 }
 
@@ -172,31 +223,42 @@ export class UpsertArticleAdminDto {
   @IsEnum(PublicationStatus)
   publicationStatus!: PublicationStatus;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   authorProfileId?: string | null;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   coverMediaId?: string | null;
 
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   readingTimeMinutes?: number | null;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   scheduledAt?: string | null;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   publishedAt?: string | null;
 
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3)
-  @ValidateNested({ each: true }) @Type(() => ArticleTranslationAdminDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => ArticleTranslationAdminDto)
   translations!: ArticleTranslationAdminDto[];
 
-  @IsArray() @IsUUID('4', { each: true })
+  @IsArray()
+  @IsUUID('4', { each: true })
   tagIds!: string[];
 }
 
 export class NewsTranslationAdminDto extends SeoTranslationDto {
   @IsString()
+  @MaxLength(MAX_RICH_TEXT_CHARACTERS)
   contentHtml!: string;
 }
 
@@ -204,16 +266,22 @@ export class UpsertNewsAdminDto {
   @IsEnum(PublicationStatus)
   publicationStatus!: PublicationStatus;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   coverMediaId?: string | null;
 
-  @IsOptional() @IsISO8601()
+  @IsOptional()
+  @IsISO8601()
   publishedAt?: string | null;
 
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3)
-  @ValidateNested({ each: true }) @Type(() => NewsTranslationAdminDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => NewsTranslationAdminDto)
   translations!: NewsTranslationAdminDto[];
 
-  @IsArray() @IsUUID('4', { each: true })
+  @IsArray()
+  @IsUUID('4', { each: true })
   tagIds!: string[];
 }
