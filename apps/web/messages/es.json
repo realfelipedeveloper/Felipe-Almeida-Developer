@@ -216,6 +216,11 @@
     "page": "Página {page} de {total}",
     "backHome": "Volver al inicio",
     "notFound": "Contenido no encontrado.",
+    "notFoundDescription": "La dirección puede haber cambiado o el contenido aún no está publicado en este idioma.",
+    "errorLabel": "Error",
+    "errorTitle": "No se pudo cargar esta página.",
+    "errorDescription": "Inténtalo de nuevo. Si el problema persiste, el servicio puede no estar disponible temporalmente.",
+    "retry": "Intentar de nuevo",
     "apiUnavailable": "Contenido temporalmente no disponible. Inténtalo de nuevo en unos instantes."
   },
   "footer": {

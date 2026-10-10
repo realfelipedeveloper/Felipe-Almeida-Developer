@@ -216,6 +216,11 @@
     "page": "Page {page} of {total}",
     "backHome": "Back home",
     "notFound": "Content not found.",
+    "notFoundDescription": "The address may have changed or the content is not published in this language yet.",
+    "errorLabel": "Error",
+    "errorTitle": "This page could not be loaded.",
+    "errorDescription": "Try again. If the problem persists, the service may be temporarily unavailable.",
+    "retry": "Try again",
     "apiUnavailable": "Content temporarily unavailable. Please try again shortly."
   },
   "footer": {

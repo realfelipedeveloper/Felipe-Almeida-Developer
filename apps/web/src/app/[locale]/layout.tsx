@@ -53,6 +53,7 @@ export default async function LocaleLayout({
               articles: nav('articles'),
               news: nav('news'),
               contact: nav('contact'),
+              newsletter: nav('newsletter'),
               menu: nav('menu'),
             }}
           />

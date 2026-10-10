@@ -6,15 +6,15 @@ Portfólio profissional com projetos, artigos, notícias, newsletter e contato �
 
 ## Stack
 
-| Camada     | Tecnologia                                                              |
-| ---------- | ----------------------------------------------------------------------- |
-| Front      | Next.js (App Router), React, TypeScript, Tailwind, next-intl            |
-| Back       | NestJS (monólito modular, Clean Architecture/DDD)                       |
-| Dados      | PostgreSQL 16 + Prisma 6, Redis                                         |
-| Mensageria | RabbitMQ                                                                |
-| Infra      | Docker Compose, Turborepo, pnpm                                         |
-| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD                                 |
-| Testes     | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
+| Camada     | Tecnologia                                                   |
+| ---------- | ------------------------------------------------------------ |
+| Front      | Next.js (App Router), React, TypeScript, Tailwind, next-intl |
+| Back       | NestJS (monólito modular, Clean Architecture/DDD)            |
+| Dados      | PostgreSQL 16 + Prisma 6, Redis                              |
+| Mensageria | RabbitMQ                                                     |
+| Infra      | Docker Compose, Turborepo, pnpm                              |
+| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD                      |
+| Testes     | Jest, Vitest, Playwright, axe, Supertest e Testcontainers    |
 
 ## Pré-requisitos
 
@@ -114,6 +114,13 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:e2e
+```
+
+Na primeira execução local do Playwright, instale o navegador gerenciado:
+
+```bash
+pnpm --filter @fad/web exec playwright install chromium
 ```
 
 O `sdd:check` é exclusivamente local porque os artefatos SDD/harness não são versionados.
@@ -181,8 +188,10 @@ O workflow `CI` executa:
 - Prisma validate;
 - lint;
 - typecheck;
-- testes;
-- build.
+- testes unitários;
+- build;
+- Playwright/axe nos três idiomas;
+- integrações com PostgreSQL e RabbitMQ via Testcontainers.
 
 O CI roda em `main`, `develop`, branches de trabalho e PRs para `main`/`develop`.
 
