@@ -508,6 +508,8 @@ model MediaAsset {
   createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt        DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  storageReadyAt   DateTime?            @map("storage_ready_at") @db.Timestamptz(3)
+  storageDeletedAt DateTime?            @map("storage_deleted_at") @db.Timestamptz(3)
 
   createdByAdmin AdminUser?         @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
   translations  MediaTranslation[]
@@ -519,6 +521,7 @@ model MediaAsset {
   newsCovers     News[]             @relation("NewsCover")
 
   @@index([kind, deletedAt])
+  @@index([storageReadyAt, deletedAt, storageDeletedAt])
   @@index([sha256])
   @@map("media_assets")
 }

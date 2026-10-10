@@ -236,6 +236,26 @@ RICH_TEXT_SANITIZE_CONFIRM=SANITIZE_RICH_TEXT \
 pnpm security:sanitize-rich-text
 ```
 
+Uploads administrativos aceitam JPEG, PNG, WebP, GIF e PDF, com validação da
+assinatura real, MIME, extensão, tamanho e checksum. Imagens são decodificadas,
+limitadas por quantidade de pixels e regravadas sem metadados; PDFs com ações,
+scripts, anexos ou formulários ativos são rejeitados. Em produção, o ClamAV é
+obrigatório (`CLAMAV_HOST`) e precisa aceitar o protocolo `INSTREAM`.
+
+Em desenvolvimento, os arquivos ficam em `MEDIA_LOCAL_ROOT`; em produção, a
+API exige `MEDIA_STORAGE_PROVIDER=s3` e usa um bucket privado S3 ou provedor
+compatível, via HTTPS e criptografia server-side. A biblioteca está em
+`/admin/midia`. O endpoint público transmite apenas mídias ligadas a conteúdo
+publicado ou ao perfil; rascunhos e arquivos órfãos permanecem acessíveis
+somente no painel autenticado.
+
+Mídias referenciadas não podem ser excluídas. A exclusão por superadministrador
+cria primeiro um tombstone no banco e depois remove o objeto. Falhas ambíguas
+permanecem pendentes e podem ser repetidas com segurança por
+`POST /api/admin/media/reconcile-storage`. Em object storage, configure também
+versionamento, regra de expiração para versões não atuais e bloqueio de acesso
+público no bucket.
+
 ## 10. Releases
 
 O workflow `Release` é manual e exige SemVer:

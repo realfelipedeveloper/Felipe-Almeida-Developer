@@ -71,3 +71,9 @@ export function safeExternalUrl(value: string | null | undefined) {
     return null;
   }
 }
+
+export function mediaUrl(id: string | null | undefined) {
+  if (!id) return null;
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+  return `${apiBase}/api/media/${encodeURIComponent(id)}`;
+}

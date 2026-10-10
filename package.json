@@ -60,7 +60,8 @@
       "@nestjs/swagger@11.4.7>js-yaml": "5.4.2",
       "vitest@4.1.11>vite": "6.4.3",
       "@vitest/mocker@4.1.11>vite": "6.4.3",
-      "ts-jest@29.4.14>handlebars": "4.7.10"
+      "ts-jest@29.4.14>handlebars": "4.7.10",
+      "postcss-selector-parser": "7.1.6"
     }
   }
 }

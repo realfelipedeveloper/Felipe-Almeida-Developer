@@ -9,6 +9,7 @@ import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
 import { slugify } from '@/lib/content';
 
 import { AdminFeedbackModal } from './admin-modal';
+import { AdminMediaMultiPicker, AdminMediaPicker } from './admin-media-picker';
 
 type Kind = 'projects' | 'articles' | 'news';
 
@@ -81,6 +82,9 @@ interface ExistingContent {
   tags?: Array<{
     tagId: string;
   }>;
+  media?: Array<{
+    mediaAssetId: string;
+  }>;
 }
 
 function blankTranslation(locale: LocaleKey): TranslationState {
@@ -149,6 +153,8 @@ export function AdminContentEditor({
   const [successOpen, setSuccessOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [publicationStatus, setPublicationStatus] = useState('DRAFT');
+  const [coverMediaId, setCoverMediaId] = useState<string | null>(null);
+  const [mediaIds, setMediaIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(!id);
 
   const routeName = kind === 'projects' ? 'projetos' : kind === 'articles' ? 'artigos' : 'noticias';
@@ -166,6 +172,8 @@ export function AdminContentEditor({
       .then((data) => {
         setExisting(data);
         setPublicationStatus(data.publicationStatus ?? 'DRAFT');
+        setCoverMediaId(data.coverMediaId ?? null);
+        setMediaIds(data.media?.map((item) => item.mediaAssetId) ?? []);
 
         setTranslations(
           locales.map((locale) => {
@@ -260,11 +268,12 @@ export function AdminContentEditor({
           endedAt: String(form.get('endedAt') ?? '') || null,
           repositoryUrl: String(form.get('repositoryUrl') ?? '') || null,
           demoUrl: String(form.get('demoUrl') ?? '') || null,
-          coverMediaId: existing?.coverMediaId ?? null,
+          coverMediaId,
           sortOrder: Number(form.get('sortOrder') ?? 0),
           publishedAt: toIso(String(form.get('publishedAt') ?? '')),
           technologyIds,
           tagIds,
+          mediaIds,
           translations: activeTranslations.map(
             ({ bodyHtml: _body, contentHtml: _content, ...item }) => ({
               ...item,
@@ -280,7 +289,7 @@ export function AdminContentEditor({
         body = {
           publicationStatus: String(form.get('publicationStatus')),
           authorProfileId: existing?.authorProfileId ?? null,
-          coverMediaId: existing?.coverMediaId ?? null,
+          coverMediaId,
           readingTimeMinutes: String(form.get('readingTimeMinutes') ?? '')
             ? Number(form.get('readingTimeMinutes'))
             : null,
@@ -307,7 +316,7 @@ export function AdminContentEditor({
       } else {
         body = {
           publicationStatus: String(form.get('publicationStatus')),
-          coverMediaId: existing?.coverMediaId ?? null,
+          coverMediaId,
           publishedAt: toIso(String(form.get('publishedAt') ?? '')),
           tagIds,
           translations: activeTranslations.map(
@@ -478,6 +487,21 @@ export function AdminContentEditor({
               defaultValue={dateInput(existing?.publishedAt) || currentDateTimeLocal()}
               required={publicationStatus === 'PUBLISHED'}
             />
+
+            <AdminMediaPicker
+              label="Imagem de capa"
+              kind="IMAGE"
+              value={coverMediaId}
+              onChange={setCoverMediaId}
+            />
+
+            {kind === 'projects' ? (
+              <AdminMediaMultiPicker
+                label="Galeria do projeto"
+                values={mediaIds}
+                onChange={setMediaIds}
+              />
+            ) : null}
           </section>
 
           {kind === 'projects' ? (

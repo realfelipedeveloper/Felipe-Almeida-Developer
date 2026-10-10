@@ -55,6 +55,7 @@ describe('AdminContentService - HTML rico', () => {
 
   function setup(sanitizedHtml: string) {
     const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       article: {
         create: jest.fn().mockResolvedValue({ id: 'article-id' }),
         update: jest.fn().mockResolvedValue({ id: 'article-id' }),
@@ -157,5 +158,19 @@ describe('AdminContentService - HTML rico', () => {
     await expect(
       service.createArticle(articleBody('<script>alert(1)</script>'), admin),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('bloqueia a mídia dentro da transação antes de criar o vínculo', async () => {
+    const { service, tx } = setup('<p>Seguro</p>');
+    const body = articleBody('<p>Seguro</p>');
+    body.coverMediaId = '55ed9830-d52d-47c4-8755-23522d940f53';
+    tx.$queryRaw.mockResolvedValue([{ id: '55ed9830-d52d-47c4-8755-23522d940f53', kind: 'IMAGE' }]);
+
+    await service.createArticle(body, admin);
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.article.create.mock.invocationCallOrder[0]!,
+    );
   });
 });

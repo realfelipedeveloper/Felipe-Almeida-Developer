@@ -131,5 +131,5 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
         run: pnpm build
 
-      - name: Executar testes E2E sem infraestrutura externa
+      - name: Executar testes E2E (inclui PostgreSQL via Testcontainers)
         run: pnpm test:e2e

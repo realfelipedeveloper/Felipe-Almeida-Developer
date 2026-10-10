@@ -60,8 +60,11 @@ export class AdminContentService {
   async updateProfile(body: UpdateProfileAdminDto, admin: AuthenticatedAdmin) {
     const profile = await this.prisma.profile.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!profile) throw new NotFoundException('Perfil não encontrado.');
-
     const result = await this.prisma.$transaction(async (tx) => {
+      await this.lockMediaReferences(tx, [
+        { id: body.avatarMediaId, kind: 'IMAGE', fieldLabel: 'avatar' },
+        { id: body.resumeMediaId, kind: 'PDF', fieldLabel: 'currículo' },
+      ]);
       await tx.profileTranslation.deleteMany({ where: { profileId: profile.id } });
       await tx.socialLink.deleteMany({ where: { profileId: profile.id } });
       const updated = await tx.profile.update({
@@ -108,6 +111,7 @@ export class AdminContentService {
         translations: true,
         technologies: { include: { technology: true }, orderBy: { sortOrder: 'asc' } },
         tags: { include: { tag: { include: { translations: true } } } },
+        media: { orderBy: { sortOrder: 'asc' } },
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     });
@@ -116,7 +120,7 @@ export class AdminContentService {
   async getProject(id: string) {
     const row = await this.prisma.project.findUnique({
       where: { id },
-      include: { translations: true, technologies: true, tags: true },
+      include: { translations: true, technologies: true, tags: true, media: true },
     });
     if (!row) throw new NotFoundException('Projeto não encontrado.');
     return row;
@@ -125,6 +129,14 @@ export class AdminContentService {
   async createProject(body: UpsertProjectAdminDto, admin: AuthenticatedAdmin) {
     try {
       const row = await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+          ...(body.mediaIds ?? []).map((id) => ({
+            id,
+            kind: 'IMAGE' as const,
+            fieldLabel: 'galeria',
+          })),
+        ]);
         const created = await tx.project.create({ data: this.projectCreateData(body) });
         await this.audit(tx, admin, 'PROJECT_CREATED', 'Project', created.id);
         return created;
@@ -140,9 +152,18 @@ export class AdminContentService {
     await this.ensureExists('project', id);
     try {
       await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+          ...(body.mediaIds ?? []).map((mediaId) => ({
+            id: mediaId,
+            kind: 'IMAGE' as const,
+            fieldLabel: 'galeria',
+          })),
+        ]);
         await tx.projectTranslation.deleteMany({ where: { projectId: id } });
         await tx.projectTechnology.deleteMany({ where: { projectId: id } });
         await tx.projectTag.deleteMany({ where: { projectId: id } });
+        await tx.projectMedia.deleteMany({ where: { projectId: id } });
         await tx.project.update({ where: { id }, data: this.projectUpdateData(body) });
         await this.audit(tx, admin, 'PROJECT_UPDATED', 'Project', id);
       });
@@ -181,6 +202,9 @@ export class AdminContentService {
   async createArticle(body: UpsertArticleAdminDto, admin: AuthenticatedAdmin) {
     try {
       const row = await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+        ]);
         const created = await tx.article.create({ data: this.articleCreateData(body) });
         await this.audit(tx, admin, 'ARTICLE_CREATED', 'Article', created.id);
         return created;
@@ -196,6 +220,9 @@ export class AdminContentService {
     await this.ensureExists('article', id);
     try {
       await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+        ]);
         await tx.articleTranslation.deleteMany({ where: { articleId: id } });
         await tx.articleTag.deleteMany({ where: { articleId: id } });
         await tx.article.update({ where: { id }, data: this.articleUpdateData(body) });
@@ -236,6 +263,9 @@ export class AdminContentService {
   async createNews(body: UpsertNewsAdminDto, admin: AuthenticatedAdmin) {
     try {
       const row = await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+        ]);
         const created = await tx.news.create({ data: this.newsCreateData(body) });
         await this.audit(tx, admin, 'NEWS_CREATED', 'News', created.id);
         return created;
@@ -251,6 +281,9 @@ export class AdminContentService {
     await this.ensureExists('news', id);
     try {
       await this.prisma.$transaction(async (tx) => {
+        await this.lockMediaReferences(tx, [
+          { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
+        ]);
         await tx.newsTranslation.deleteMany({ where: { newsId: id } });
         await tx.newsTag.deleteMany({ where: { newsId: id } });
         await tx.news.update({ where: { id }, data: this.newsUpdateData(body) });
@@ -313,6 +346,12 @@ export class AdminContentService {
         })),
       },
       tags: { create: body.tagIds.map((tagId) => ({ tagId })) },
+      media: {
+        create: (body.mediaIds ?? []).map((mediaAssetId, index) => ({
+          mediaAssetId,
+          sortOrder: index,
+        })),
+      },
     };
   }
 
@@ -396,6 +435,36 @@ export class AdminContentService {
       );
     }
     return sanitized;
+  }
+
+  private async lockMediaReferences(
+    tx: Prisma.TransactionClient,
+    references: Array<{
+      id: string | null | undefined;
+      kind: 'IMAGE' | 'PDF';
+      fieldLabel: string;
+    }>,
+  ): Promise<void> {
+    const selected = references.filter(
+      (item): item is { id: string; kind: 'IMAGE' | 'PDF'; fieldLabel: string } => Boolean(item.id),
+    );
+    if (!selected.length) return;
+
+    const ids = [...new Set(selected.map((item) => item.id))].sort();
+    const rows = await tx.$queryRaw<Array<{ id: string; kind: 'IMAGE' | 'PDF' }>>(Prisma.sql`
+      SELECT id, kind
+      FROM media_assets
+      WHERE id::text IN (${Prisma.join(ids)})
+        AND deleted_at IS NULL
+        AND storage_ready_at IS NOT NULL
+      ORDER BY id
+      FOR KEY SHARE
+    `);
+    const available = new Map(rows.map((row) => [row.id, row.kind]));
+    const invalid = selected.find((item) => available.get(item.id) !== item.kind);
+    if (invalid) {
+      throw new BadRequestException(`A mídia selecionada para ${invalid.fieldLabel} é inválida.`);
+    }
   }
 
   private async ensureExists(kind: 'project' | 'article' | 'news', id: string): Promise<void> {

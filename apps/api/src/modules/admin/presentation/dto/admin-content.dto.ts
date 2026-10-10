@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   ArrayMinSize,
   IsArray,
   IsBoolean,
@@ -211,6 +212,13 @@ export class UpsertProjectAdminDto {
   @IsArray()
   @IsUUID('4', { each: true })
   tagIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  mediaIds?: string[];
 }
 
 export class ArticleTranslationAdminDto extends SeoTranslationDto {
