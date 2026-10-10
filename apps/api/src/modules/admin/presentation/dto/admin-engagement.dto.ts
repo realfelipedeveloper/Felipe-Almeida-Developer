@@ -1,7 +1,4 @@
-import {
-  ContactStatus,
-  NewsletterSubscriberStatus,
-} from '@prisma/client';
+import { ContactStatus, NewsletterSubscriberStatus } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
 
 export class ContactListQueryDto {

@@ -1,4 +1,11 @@
-import { Controller, Get, Headers, NotFoundException, Res, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Headers,
+  NotFoundException,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { MetricsService } from './metrics.service';
@@ -10,7 +17,10 @@ export class MetricsController {
 
   @Get()
   @ApiExcludeEndpoint()
-  getMetrics(@Headers('x-metrics-token') token: string | undefined, @Res() response: Response): void {
+  getMetrics(
+    @Headers('x-metrics-token') token: string | undefined,
+    @Res() response: Response,
+  ): void {
     if (process.env.METRICS_ENABLED === 'false') {
       throw new NotFoundException();
     }

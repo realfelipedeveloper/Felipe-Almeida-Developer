@@ -18,7 +18,9 @@ const include = {
 export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPublished(filters: ArticleListFilters): Promise<{ data: PublicArticleListItem[]; total: number }> {
+  async listPublished(
+    filters: ArticleListFilters,
+  ): Promise<{ data: PublicArticleListItem[]; total: number }> {
     const locale = toPrismaLocale(filters.locale);
     const now = new Date();
     const where: Prisma.ArticleWhereInput = {
@@ -44,7 +46,10 @@ export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepos
     return { data: rows.map((row) => this.toListItem(row, locale)), total };
   }
 
-  async findPublishedBySlug(localeValue: ArticleListFilters['locale'], slug: string): Promise<PublicArticleDetail | null> {
+  async findPublishedBySlug(
+    localeValue: ArticleListFilters['locale'],
+    slug: string,
+  ): Promise<PublicArticleDetail | null> {
     const locale = toPrismaLocale(localeValue);
     const row = await this.prisma.article.findFirst({
       where: {

@@ -1,9 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  ContactStatus,
-  NewsletterSubscriberStatus,
-  Prisma,
-} from '@prisma/client';
+import { ContactStatus, NewsletterSubscriberStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import type { AuthenticatedAdmin } from '../../auth/application/auth.types';
 
@@ -19,11 +15,7 @@ export class AdminEngagementService {
     });
   }
 
-  async updateContactStatus(
-    id: string,
-    status: ContactStatus,
-    admin: AuthenticatedAdmin,
-  ) {
+  async updateContactStatus(id: string, status: ContactStatus, admin: AuthenticatedAdmin) {
     const current = await this.prisma.contactMessage.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Mensagem de contato não encontrada.');
 
@@ -63,7 +55,7 @@ export class AdminEngagementService {
           status,
           confirmedAt:
             status === NewsletterSubscriberStatus.ACTIVE
-              ? current.confirmedAt ?? new Date()
+              ? (current.confirmedAt ?? new Date())
               : current.confirmedAt,
           unsubscribedAt:
             status === NewsletterSubscriberStatus.UNSUBSCRIBED

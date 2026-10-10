@@ -17,10 +17,12 @@ export class RabbitMqService implements OnModuleInit, OnApplicationShutdown {
       await this.ensureConnected();
       this.logger.child('filas', { dependencia: 'rabbitmq' }).info('RabbitMQ conectado');
     } catch (error) {
-      this.logger.child('filas', { dependencia: 'rabbitmq' }).warn(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'RabbitMQ indisponível durante a inicialização; a conexão será refeita sob demanda',
-      );
+      this.logger
+        .child('filas', { dependencia: 'rabbitmq' })
+        .warn(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'RabbitMQ indisponível durante a inicialização; a conexão será refeita sob demanda',
+        );
     }
   }
 
@@ -35,15 +37,24 @@ export class RabbitMqService implements OnModuleInit, OnApplicationShutdown {
     await this.ensureConnected();
   }
 
-  async publish(eventName: string, body: unknown, options: { eventId: string; correlationId: string }): Promise<void> {
+  async publish(
+    eventName: string,
+    body: unknown,
+    options: { eventId: string; correlationId: string },
+  ): Promise<void> {
     const channel = await this.ensureConnected();
-    const accepted = channel.publish(EVENTS_EXCHANGE, eventName, Buffer.from(JSON.stringify(body)), {
-      persistent: true,
-      contentType: 'application/json',
-      messageId: options.eventId,
-      correlationId: options.correlationId,
-      timestamp: Date.now(),
-    });
+    const accepted = channel.publish(
+      EVENTS_EXCHANGE,
+      eventName,
+      Buffer.from(JSON.stringify(body)),
+      {
+        persistent: true,
+        contentType: 'application/json',
+        messageId: options.eventId,
+        correlationId: options.correlationId,
+        timestamp: Date.now(),
+      },
+    );
 
     if (!accepted) {
       await new Promise<void>((resolve) => channel.once('drain', resolve));
@@ -55,7 +66,9 @@ export class RabbitMqService implements OnModuleInit, OnApplicationShutdown {
       return this.channel;
     }
 
-    this.connection = await amqp.connect(process.env.RABBITMQ_URL ?? 'amqp://fad:fad@localhost:5672');
+    this.connection = await amqp.connect(
+      process.env.RABBITMQ_URL ?? 'amqp://fad:fad@localhost:5672',
+    );
     this.connection.on('close', () => {
       this.channel = null;
       this.connection = null;

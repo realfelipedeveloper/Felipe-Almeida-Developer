@@ -18,12 +18,11 @@ export function resolveAllowedOrigins(): string[] {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  const candidates = [
-    process.env.WEB_URL ?? 'http://localhost:3000',
-    ...configured,
-  ];
+  const candidates = [process.env.WEB_URL ?? 'http://localhost:3000', ...configured];
 
-  return [...new Set(candidates.map(asHttpOrigin).filter((value): value is string => Boolean(value)))];
+  return [
+    ...new Set(candidates.map(asHttpOrigin).filter((value): value is string => Boolean(value))),
+  ];
 }
 
 export function resolveBodyLimit(): string {
@@ -32,10 +31,7 @@ export function resolveBodyLimit(): string {
 }
 
 export function shouldEnableSwagger(): boolean {
-  return (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.SWAGGER_ENABLED === 'true'
-  );
+  return process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true';
 }
 
 function assertStrongSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET'): void {
@@ -58,10 +54,7 @@ export function validateProductionSecurityConfig(): void {
     throw new Error('WEB_URL precisa utilizar HTTPS em produção.');
   }
 
-  if (
-    process.env.METRICS_ENABLED !== 'false' &&
-    !process.env.METRICS_TOKEN?.trim()
-  ) {
+  if (process.env.METRICS_ENABLED !== 'false' && !process.env.METRICS_TOKEN?.trim()) {
     throw new Error(
       'METRICS_TOKEN é obrigatório em produção quando METRICS_ENABLED não estiver desativado.',
     );
@@ -84,10 +77,7 @@ export function httpSecurityHeaders(
   response.setHeader('Cross-Origin-Resource-Policy', 'same-site');
 
   if (request.path.startsWith('/api/admin')) {
-    response.setHeader(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, proxy-revalidate',
-    );
+    response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.setHeader('Pragma', 'no-cache');
   }
 
@@ -99,10 +89,7 @@ export function httpSecurityHeaders(
   }
 
   if (process.env.NODE_ENV === 'production') {
-    response.setHeader(
-      'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains',
-    );
+    response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   next();

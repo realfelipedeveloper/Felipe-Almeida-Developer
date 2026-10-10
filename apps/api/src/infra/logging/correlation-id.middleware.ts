@@ -26,8 +26,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
     res.setHeader('x-correlation-id', correlationId);
 
     res.on('finish', () => {
-      const durationMs =
-        Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
       this.metrics.observeHttpRequest(
         req.method,
         req.route?.path ?? req.path,

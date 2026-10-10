@@ -16,10 +16,12 @@ export class CacheService {
         return JSON.parse(cached) as T;
       }
     } catch (error) {
-      this.logger.child('app', { dependencia: 'redis', chave: key }).debug(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Leitura de cache ignorada',
-      );
+      this.logger
+        .child('app', { dependencia: 'redis', chave: key })
+        .debug(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Leitura de cache ignorada',
+        );
     }
 
     const value = await loader();
@@ -27,10 +29,12 @@ export class CacheService {
     try {
       await this.redis.connection.set(key, JSON.stringify(value), 'EX', ttlSeconds);
     } catch (error) {
-      this.logger.child('app', { dependencia: 'redis', chave: key }).debug(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Escrita de cache ignorada',
-      );
+      this.logger
+        .child('app', { dependencia: 'redis', chave: key })
+        .debug(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Escrita de cache ignorada',
+        );
     }
 
     return value;
@@ -40,17 +44,25 @@ export class CacheService {
     try {
       let cursor = '0';
       do {
-        const [nextCursor, keys] = await this.redis.connection.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 100);
+        const [nextCursor, keys] = await this.redis.connection.scan(
+          cursor,
+          'MATCH',
+          `${prefix}*`,
+          'COUNT',
+          100,
+        );
         cursor = nextCursor;
         if (keys.length > 0) {
           await this.redis.connection.del(...keys);
         }
       } while (cursor !== '0');
     } catch (error) {
-      this.logger.child('app', { dependencia: 'redis', prefixo: prefix }).warn(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Não foi possível invalidar o cache',
-      );
+      this.logger
+        .child('app', { dependencia: 'redis', prefixo: prefix })
+        .warn(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Não foi possível invalidar o cache',
+        );
     }
   }
 }

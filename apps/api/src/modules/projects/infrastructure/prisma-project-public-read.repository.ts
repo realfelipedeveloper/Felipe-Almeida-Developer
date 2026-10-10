@@ -24,7 +24,9 @@ const listInclude = {
 export class PrismaProjectPublicReadRepository implements ProjectPublicReadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPublished(filters: ProjectListFilters): Promise<{ data: PublicProjectListItem[]; total: number }> {
+  async listPublished(
+    filters: ProjectListFilters,
+  ): Promise<{ data: PublicProjectListItem[]; total: number }> {
     const locale = toPrismaLocale(filters.locale);
     const where: Prisma.ProjectWhereInput = {
       publicationStatus: PublicationStatus.PUBLISHED,
@@ -56,7 +58,10 @@ export class PrismaProjectPublicReadRepository implements ProjectPublicReadRepos
     };
   }
 
-  async findPublishedBySlug(localeValue: ProjectListFilters['locale'], slug: string): Promise<PublicProjectDetail | null> {
+  async findPublishedBySlug(
+    localeValue: ProjectListFilters['locale'],
+    slug: string,
+  ): Promise<PublicProjectDetail | null> {
     const locale = toPrismaLocale(localeValue);
     const row = await this.prisma.project.findFirst({
       where: {

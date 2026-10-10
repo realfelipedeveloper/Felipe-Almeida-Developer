@@ -1,27 +1,11 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
-import {
-  NewsletterSubscriberStatus,
-  NewsletterTokenPurpose,
-  Prisma,
-} from '@prisma/client';
-import {
-  createHash,
-  createHmac,
-  randomUUID,
-} from 'node:crypto';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { NewsletterSubscriberStatus, NewsletterTokenPurpose, Prisma } from '@prisma/client';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { AppLogger } from '../../../infra/logging/app-logger.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { RedisService } from '../../../infra/redis/redis.service';
 import { toPrismaLocale } from '../../../shared/domain/locale.mapper';
-import type {
-  ContactMessageDto,
-  NewsletterSubscribeDto,
-} from '../presentation/dto/engagement.dto';
+import type { ContactMessageDto, NewsletterSubscribeDto } from '../presentation/dto/engagement.dto';
 
 type PublicLocale = 'pt-BR' | 'en' | 'es';
 
@@ -360,10 +344,12 @@ export class EngagementService {
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.child('seguranca', { chaveRateLimit: key }).warn(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Redis indisponível durante rate limit público; requisição seguirá com validações restantes',
-      );
+      this.logger
+        .child('seguranca', { chaveRateLimit: key })
+        .warn(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Redis indisponível durante rate limit público; requisição seguirá com validações restantes',
+        );
     }
   }
 
@@ -385,7 +371,9 @@ export class EngagementService {
 
     const fallback = process.env.JWT_REFRESH_SECRET?.trim();
     if (!fallback || fallback.length < 32 || fallback.startsWith('gere-')) {
-      throw new Error('NEWSLETTER_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.');
+      throw new Error(
+        'NEWSLETTER_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
+      );
     }
     return fallback;
   }
@@ -396,7 +384,9 @@ export class EngagementService {
       process.env.JWT_REFRESH_SECRET?.trim() ||
       'desenvolvimento-local';
 
-    return createHmac('sha256', secret).update(ip ?? 'desconhecido').digest('hex');
+    return createHmac('sha256', secret)
+      .update(ip ?? 'desconhecido')
+      .digest('hex');
   }
 
   private hashValue(value: string): string {
@@ -404,7 +394,8 @@ export class EngagementService {
   }
 
   private safeUuid(value: string | undefined): string | null {
-    return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    return value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
       ? value
       : null;
   }

@@ -36,8 +36,13 @@ export interface ProjectListFilters {
 }
 
 export interface ProjectPublicReadRepository {
-  listPublished(filters: ProjectListFilters): Promise<{ data: PublicProjectListItem[]; total: number }>;
-  findPublishedBySlug(locale: ProjectListFilters['locale'], slug: string): Promise<PublicProjectDetail | null>;
+  listPublished(
+    filters: ProjectListFilters,
+  ): Promise<{ data: PublicProjectListItem[]; total: number }>;
+  findPublishedBySlug(
+    locale: ProjectListFilters['locale'],
+    slug: string,
+  ): Promise<PublicProjectDetail | null>;
 }
 
 export const PROJECT_PUBLIC_READ_REPOSITORY = Symbol('PROJECT_PUBLIC_READ_REPOSITORY');

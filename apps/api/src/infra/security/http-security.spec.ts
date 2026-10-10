@@ -52,9 +52,7 @@ describe('hardening HTTP da API', () => {
     delete process.env.JWT_ACCESS_SECRET;
     delete process.env.JWT_REFRESH_SECRET;
 
-    expect(() => validateProductionSecurityConfig()).toThrow(
-      'JWT_ACCESS_SECRET',
-    );
+    expect(() => validateProductionSecurityConfig()).toThrow('JWT_ACCESS_SECRET');
   });
 
   it('aceita configuração mínima segura de produção', () => {
@@ -73,21 +71,11 @@ describe('hardening HTTP da API', () => {
     const setHeader = jest.fn();
     const next = jest.fn();
 
-    httpSecurityHeaders(
-      { path: '/api/admin/auth/me' } as never,
-      { setHeader } as never,
-      next,
-    );
+    httpSecurityHeaders({ path: '/api/admin/auth/me' } as never, { setHeader } as never, next);
 
-    expect(setHeader).toHaveBeenCalledWith(
-      'X-Content-Type-Options',
-      'nosniff',
-    );
+    expect(setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
     expect(setHeader).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
-    expect(setHeader).toHaveBeenCalledWith(
-      'Cache-Control',
-      expect.stringContaining('no-store'),
-    );
+    expect(setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));
     expect(setHeader).toHaveBeenCalledWith(
       'Content-Security-Policy',
       expect.stringContaining("default-src 'none'"),

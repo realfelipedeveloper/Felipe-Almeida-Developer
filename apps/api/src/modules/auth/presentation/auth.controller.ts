@@ -16,11 +16,7 @@ import type { AuthenticatedAdmin } from '../application/auth.types';
 import { AdminAuthGuard } from './admin-auth.guard';
 import { AdminRoles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
-import {
-  ADMIN_ACCESS_COOKIE,
-  ADMIN_CSRF_COOKIE,
-  ADMIN_REFRESH_COOKIE,
-} from './auth.constants';
+import { ADMIN_ACCESS_COOKIE, ADMIN_CSRF_COOKIE, ADMIN_REFRESH_COOKIE } from './auth.constants';
 import type { AdminRequest } from './auth.request';
 import { CsrfGuard } from './csrf.guard';
 import { CurrentAdmin } from './current-admin.decorator';
@@ -66,10 +62,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Solicita recuperação da senha administrativa sem revelar a existência da conta',
   })
-  requestPasswordReset(
-    @Body() body: ForgotPasswordDto,
-    @Req() request: AdminRequest,
-  ) {
+  requestPasswordReset(@Body() body: ForgotPasswordDto, @Req() request: AdminRequest) {
     return this.auth.requestPasswordReset(body.email, request.ip);
   }
 
@@ -86,10 +79,7 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(CsrfGuard)
   @ApiOperation({ summary: 'Rotaciona access token e refresh token da sessão administrativa' })
-  async refresh(
-    @Req() request: AdminRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async refresh(@Req() request: AdminRequest, @Res({ passthrough: true }) response: Response) {
     const refreshToken = request.cookies?.[ADMIN_REFRESH_COOKIE] as string | undefined;
     if (!refreshToken) throw new UnauthorizedException('Refresh token ausente.');
     const result = await this.auth.refresh(refreshToken);
@@ -108,10 +98,7 @@ export class AuthController {
   @HttpCode(204)
   @UseGuards(CsrfGuard)
   @ApiOperation({ summary: 'Encerra a sessão administrativa atual' })
-  async logout(
-    @Req() request: AdminRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() request: AdminRequest, @Res({ passthrough: true }) response: Response) {
     const refreshToken = request.cookies?.[ADMIN_REFRESH_COOKIE] as string | undefined;
     await this.auth.logout(refreshToken);
     this.clearSessionCookies(response);

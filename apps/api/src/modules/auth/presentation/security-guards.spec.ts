@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  type ExecutionContext,
-} from '@nestjs/common';
+import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { CsrfGuard } from './csrf.guard';
 import { PasswordReadyGuard } from './password-ready.guard';
@@ -25,8 +22,7 @@ describe('guards de segurança administrativa', () => {
     it('aceita double-submit token idêntico', () => {
       const request = {
         cookies: { fad_admin_csrf: 'token-seguro' },
-        header: (name: string) =>
-          name === 'x-csrf-token' ? 'token-seguro' : undefined,
+        header: (name: string) => (name === 'x-csrf-token' ? 'token-seguro' : undefined),
       };
 
       expect(guard.canActivate(contextFor(request))).toBe(true);
@@ -38,9 +34,7 @@ describe('guards de segurança administrativa', () => {
         header: () => undefined,
       };
 
-      expect(() => guard.canActivate(contextFor(request))).toThrow(
-        ForbiddenException,
-      );
+      expect(() => guard.canActivate(contextFor(request))).toThrow(ForbiddenException);
     });
 
     it('recusa token CSRF divergente', () => {
@@ -49,17 +43,13 @@ describe('guards de segurança administrativa', () => {
         header: () => 'token-bbbb',
       };
 
-      expect(() => guard.canActivate(contextFor(request))).toThrow(
-        ForbiddenException,
-      );
+      expect(() => guard.canActivate(contextFor(request))).toThrow(ForbiddenException);
     });
   });
 
   describe('RolesGuard', () => {
     it('recusa papel não autorizado', () => {
-      const getAllAndOverride = jest
-        .fn()
-        .mockReturnValue(['SUPER_ADMIN']);
+      const getAllAndOverride = jest.fn().mockReturnValue(['SUPER_ADMIN']);
       const guard = new RolesGuard({
         getAllAndOverride,
       } as never);
@@ -68,15 +58,11 @@ describe('guards de segurança administrativa', () => {
         admin: { role: 'ADMIN' },
       };
 
-      expect(() => guard.canActivate(contextFor(request))).toThrow(
-        ForbiddenException,
-      );
+      expect(() => guard.canActivate(contextFor(request))).toThrow(ForbiddenException);
     });
 
     it('aceita papel autorizado', () => {
-      const getAllAndOverride = jest
-        .fn()
-        .mockReturnValue(['ADMIN', 'SUPER_ADMIN']);
+      const getAllAndOverride = jest.fn().mockReturnValue(['ADMIN', 'SUPER_ADMIN']);
       const guard = new RolesGuard({
         getAllAndOverride,
       } as never);
@@ -89,12 +75,9 @@ describe('guards de segurança administrativa', () => {
     });
 
     it('restringe logout global ao SUPER_ADMIN', () => {
-      expect(
-        Reflect.getMetadata(
-          ADMIN_ROLES_KEY,
-          AuthController.prototype.logoutAll,
-        ),
-      ).toEqual(['SUPER_ADMIN']);
+      expect(Reflect.getMetadata(ADMIN_ROLES_KEY, AuthController.prototype.logoutAll)).toEqual([
+        'SUPER_ADMIN',
+      ]);
     });
   });
 

@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { TurnstileService } from './turnstile.service';
 
 describe('TurnstileService', () => {
@@ -21,18 +18,16 @@ describe('TurnstileService', () => {
 
   it('não exige Turnstile quando a integração está desabilitada', async () => {
     const service = new TurnstileService();
-    await expect(
-      service.verify(undefined, '127.0.0.1', 'pt-BR'),
-    ).resolves.toBeUndefined();
+    await expect(service.verify(undefined, '127.0.0.1', 'pt-BR')).resolves.toBeUndefined();
   });
 
   it('recusa requisição sem token quando Turnstile está habilitado', async () => {
     process.env.TURNSTILE_SECRET_KEY = 'segredo-de-teste';
     const service = new TurnstileService();
 
-    await expect(
-      service.verify('', '127.0.0.1', 'pt-BR'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.verify('', '127.0.0.1', 'pt-BR')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('aceita token validado pela Cloudflare', async () => {
@@ -44,9 +39,7 @@ describe('TurnstileService', () => {
 
     const service = new TurnstileService();
 
-    await expect(
-      service.verify('token-valido', '127.0.0.1', 'pt-BR'),
-    ).resolves.toBeUndefined();
+    await expect(service.verify('token-valido', '127.0.0.1', 'pt-BR')).resolves.toBeUndefined();
   });
 
   it('recusa token rejeitado pela Cloudflare', async () => {
@@ -58,9 +51,9 @@ describe('TurnstileService', () => {
 
     const service = new TurnstileService();
 
-    await expect(
-      service.verify('token-invalido', '127.0.0.1', 'pt-BR'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.verify('token-invalido', '127.0.0.1', 'pt-BR')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('falha de forma fechada se o serviço anti-bot estiver indisponível', async () => {
@@ -71,8 +64,8 @@ describe('TurnstileService', () => {
 
     const service = new TurnstileService();
 
-    await expect(
-      service.verify('token', '127.0.0.1', 'pt-BR'),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(service.verify('token', '127.0.0.1', 'pt-BR')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

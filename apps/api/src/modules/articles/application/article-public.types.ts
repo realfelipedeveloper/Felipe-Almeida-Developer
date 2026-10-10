@@ -22,8 +22,13 @@ export interface ArticleListFilters {
 }
 
 export interface ArticlePublicReadRepository {
-  listPublished(filters: ArticleListFilters): Promise<{ data: PublicArticleListItem[]; total: number }>;
-  findPublishedBySlug(locale: ArticleListFilters['locale'], slug: string): Promise<PublicArticleDetail | null>;
+  listPublished(
+    filters: ArticleListFilters,
+  ): Promise<{ data: PublicArticleListItem[]; total: number }>;
+  findPublishedBySlug(
+    locale: ArticleListFilters['locale'],
+    slug: string,
+  ): Promise<PublicArticleDetail | null>;
 }
 
 export const ARTICLE_PUBLIC_READ_REPOSITORY = Symbol('ARTICLE_PUBLIC_READ_REPOSITORY');
