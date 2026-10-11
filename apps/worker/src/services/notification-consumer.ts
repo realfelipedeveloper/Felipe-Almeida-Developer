@@ -1,25 +1,18 @@
 import { NewsletterTokenPurpose, Prisma, PrismaClient, PrivacyRequestStatus } from '@prisma/client';
 import { createHmac } from 'node:crypto';
 import type { ConsumeMessage } from 'amqplib';
+import { parseEventEnvelope } from '../domain/event-envelope.js';
 import { RabbitConnection } from '../infra/rabbitmq.js';
 import { logger } from '../infra/logger.js';
+import { workerMetrics, type WorkerMetrics } from '../infra/worker-metrics.js';
 import { EmailSender } from './email-sender.js';
 import { WhatsAppSender } from './whatsapp-sender.js';
 
 const CONSUMER_NAME = 'worker.notifications.v1';
 const MAX_RETRIES = 5;
-const SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS = 25_000;
+const SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS = 30_000;
 
 type PublicLocale = 'pt-BR' | 'en' | 'es';
-
-interface EventEnvelope {
-  eventId: string;
-  eventName: string;
-  occurredAt: string;
-  correlationId: string;
-  version: number;
-  payload: Record<string, unknown>;
-}
 
 const copy = {
   'pt-BR': {
@@ -95,6 +88,7 @@ export class NotificationConsumer {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly rabbit: RabbitConnection,
+    private readonly metrics: WorkerMetrics = workerMetrics,
   ) {}
 
   async start(): Promise<void> {
@@ -103,42 +97,53 @@ export class NotificationConsumer {
 
   private async handle(message: ConsumeMessage): Promise<void> {
     try {
-      const event = JSON.parse(message.content.toString('utf8')) as EventEnvelope;
-      const existing = await this.prisma.processedEvent.findUnique({
-        where: {
-          eventId_consumer: {
-            eventId: event.eventId,
-            consumer: CONSUMER_NAME,
-          },
+      const event = parseEventEnvelope(message.content);
+      const processed = await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw(Prisma.sql`
+            SELECT 1 AS acquired
+            FROM pg_advisory_xact_lock(hashtextextended(${event.eventId}, 1))
+          `);
+          const existing = await tx.processedEvent.findUnique({
+            where: {
+              eventId_consumer: {
+                eventId: event.eventId,
+                consumer: CONSUMER_NAME,
+              },
+            },
+          });
+          if (existing) return false;
+
+          if (event.eventName === 'contact.submitted' || event.eventName === 'contact.created') {
+            await this.handleContact(tx, event.payload);
+          } else if (
+            event.eventName === 'newsletter.subscribed' ||
+            event.eventName === 'newsletter.confirmation.requested'
+          ) {
+            await this.handleConfirmation(tx, event.payload);
+          } else if (event.eventName === 'newsletter.confirmed') {
+            await this.handleWelcome(tx, event.payload);
+          } else if (event.eventName === 'admin.password-reset.requested') {
+            await this.handlePasswordReset(event.payload);
+          } else if (event.eventName === 'privacy.verification.requested') {
+            await this.handlePrivacyVerificationInTransaction(tx, event.payload);
+          }
+
+          await tx.processedEvent.create({
+            data: {
+              eventId: event.eventId,
+              consumer: CONSUMER_NAME,
+            },
+          });
+          return true;
         },
-      });
-
-      if (existing) {
-        this.rabbit.ack(message);
-        return;
-      }
-
-      if (event.eventName === 'contact.created') {
-        await this.handleContact(event.payload);
-      } else if (event.eventName === 'newsletter.confirmation.requested') {
-        await this.handleConfirmation(event.payload);
-      } else if (event.eventName === 'newsletter.confirmed') {
-        await this.handleWelcome(event.payload);
-      } else if (event.eventName === 'admin.password-reset.requested') {
-        await this.handlePasswordReset(event.payload);
-      } else if (event.eventName === 'privacy.verification.requested') {
-        await this.handlePrivacyVerification(event.payload);
-      }
-
-      await this.prisma.processedEvent.create({
-        data: {
-          eventId: event.eventId,
-          consumer: CONSUMER_NAME,
-        },
-      });
+        { maxWait: 5_000, timeout: SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS },
+      );
+      this.metrics.increment(processed ? 'notification_processed' : 'notification_duplicate');
 
       this.rabbit.ack(message);
     } catch (error) {
+      this.metrics.increment('notification_failed');
       const currentRetry = Number(message.properties.headers?.['x-fad-retry-count'] ?? 0);
       const reason = this.safeFailureReason(error);
 
@@ -161,7 +166,10 @@ export class NotificationConsumer {
     }
   }
 
-  private async handleContact(payload: Record<string, unknown>): Promise<void> {
+  private async handleContact(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const inbox = process.env.CONTACT_INBOX;
     if (!inbox || inbox.startsWith('TODO')) {
       throw new Error('CONTACT_INBOX não configurado.');
@@ -169,89 +177,92 @@ export class NotificationConsumer {
 
     const contactMessageId = String(payload.contactMessageId ?? '');
     const contact = contactMessageId
-      ? await this.prisma.contactMessage.findUnique({ where: { id: contactMessageId } })
+      ? await tx.contactMessage.findUnique({ where: { id: contactMessageId } })
       : null;
     if (!contact || contact.email.endsWith('@privacy.invalid')) return;
-    await this.withLockedSubject(contact.email, async (tx) => {
-      const fresh = await tx.contactMessage.findUnique({ where: { id: contactMessageId } });
-      if (!fresh || fresh.email !== contact.email || fresh.email.endsWith('@privacy.invalid')) {
-        return;
-      }
-      const { name, email, subject, message } = fresh;
-      const locale = this.locale(fresh.locale);
-      const texts = copy[locale];
+    await this.lockSubject(tx, contact.email);
+    const fresh = await tx.contactMessage.findUnique({ where: { id: contactMessageId } });
+    if (!fresh || fresh.email !== contact.email || fresh.email.endsWith('@privacy.invalid')) {
+      return;
+    }
+    const { name, email, subject, message } = fresh;
+    const locale = this.locale(fresh.locale);
+    const texts = copy[locale];
 
-      await this.email.send({
-        to: inbox,
-        subject: `${texts.contactSubject}: ${subject}`,
-        text: `Nome: ${name}\nE-mail: ${email}\nAssunto: ${subject}\n\n${message}`,
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#171717">
-            <h2>Novo contato pelo portfólio</h2>
-            <p><strong>Nome:</strong> ${this.escape(name)}</p>
-            <p><strong>E-mail:</strong> ${this.escape(email)}</p>
-            <p><strong>Assunto:</strong> ${this.escape(subject)}</p>
-            <hr />
-            <p>${this.escape(message).replace(/\n/g, '<br>')}</p>
-          </div>
-        `,
-      });
-
-      await this.whatsapp.notifyContact({ name, email, subject });
+    await this.email.send({
+      to: inbox,
+      subject: `${texts.contactSubject}: ${subject}`,
+      text: `Nome: ${name}\nE-mail: ${email}\nAssunto: ${subject}\n\n${message}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#171717">
+          <h2>Novo contato pelo portfólio</h2>
+          <p><strong>Nome:</strong> ${this.escape(name)}</p>
+          <p><strong>E-mail:</strong> ${this.escape(email)}</p>
+          <p><strong>Assunto:</strong> ${this.escape(subject)}</p>
+          <hr />
+          <p>${this.escape(message).replace(/\n/g, '<br>')}</p>
+        </div>
+      `,
     });
+
+    await this.whatsapp.notifyContact({ name, email, subject });
   }
 
-  private async handleConfirmation(payload: Record<string, unknown>): Promise<void> {
+  private async handleConfirmation(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const subscriberId = String(payload.subscriberId ?? '');
     const tokenId = String(payload.tokenId ?? '');
     const subscriber = subscriberId
-      ? await this.prisma.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
+      ? await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
       : null;
     if (!subscriber) return;
-    await this.withLockedSubject(subscriber.email, async (tx) => {
-      const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
-      if (!fresh || fresh.email !== subscriber.email) return;
-      const locale = this.locale(fresh.locale);
-      const texts = copy[locale];
-      const token = this.deriveToken(
-        tokenId,
-        subscriberId,
-        NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
-      );
-      const base = process.env.WEB_URL ?? 'http://localhost:3000';
-      const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    await this.lockSubject(tx, subscriber.email);
+    const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
+    if (!fresh || fresh.email !== subscriber.email) return;
+    const locale = this.locale(fresh.locale);
+    const texts = copy[locale];
+    const token = this.deriveToken(
+      tokenId,
+      subscriberId,
+      NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
+    );
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
-      await this.email.send({
-        to: fresh.email,
-        subject: texts.confirmSubject,
-        text: `${texts.confirmText}\n\n${url}`,
-        html: this.layout(texts.confirmTitle, texts.confirmText, texts.confirmButton, url),
-      });
+    await this.email.send({
+      to: fresh.email,
+      subject: texts.confirmSubject,
+      text: `${texts.confirmText}\n\n${url}`,
+      html: this.layout(texts.confirmTitle, texts.confirmText, texts.confirmButton, url),
     });
   }
 
-  private async handleWelcome(payload: Record<string, unknown>): Promise<void> {
+  private async handleWelcome(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const subscriberId = String(payload.subscriberId ?? '');
     const tokenId = String(payload.unsubscribeTokenId ?? '');
     const subscriber = subscriberId
-      ? await this.prisma.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
+      ? await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
       : null;
     if (!subscriber) return;
-    await this.withLockedSubject(subscriber.email, async (tx) => {
-      const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
-      if (!fresh || fresh.email !== subscriber.email) return;
-      const locale = this.locale(fresh.locale);
-      const texts = copy[locale];
-      const token = this.deriveToken(tokenId, subscriberId, NewsletterTokenPurpose.UNSUBSCRIBE);
-      const base = process.env.WEB_URL ?? 'http://localhost:3000';
-      const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+    await this.lockSubject(tx, subscriber.email);
+    const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
+    if (!fresh || fresh.email !== subscriber.email) return;
+    const locale = this.locale(fresh.locale);
+    const texts = copy[locale];
+    const token = this.deriveToken(tokenId, subscriberId, NewsletterTokenPurpose.UNSUBSCRIBE);
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
 
-      await this.email.send({
-        to: fresh.email,
-        subject: texts.welcomeSubject,
-        text: `${texts.welcomeText}\n\n${url}`,
-        html: this.layout(texts.welcomeTitle, texts.welcomeText, texts.unsubscribe, url),
-      });
+    await this.email.send({
+      to: fresh.email,
+      subject: texts.welcomeSubject,
+      text: `${texts.welcomeText}\n\n${url}`,
+      html: this.layout(texts.welcomeTitle, texts.welcomeText, texts.unsubscribe, url),
     });
   }
 
@@ -282,9 +293,19 @@ export class NotificationConsumer {
   }
 
   private async handlePrivacyVerification(payload: Record<string, unknown>): Promise<void> {
+    await this.prisma.$transaction(
+      (tx) => this.handlePrivacyVerificationInTransaction(tx, payload),
+      { maxWait: 5_000, timeout: SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS },
+    );
+  }
+
+  private async handlePrivacyVerificationInTransaction(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const requestId = String(payload.requestId ?? '');
     const request = requestId
-      ? await this.prisma.privacyRequest.findUnique({ where: { id: requestId } })
+      ? await tx.privacyRequest.findUnique({ where: { id: requestId } })
       : null;
     if (
       !request ||
@@ -296,48 +317,39 @@ export class NotificationConsumer {
     if (!request.email || (request.type !== 'EXPORT' && request.type !== 'DELETE')) {
       throw new Error('Evento de verificação de privacidade inválido.');
     }
-    await this.withLockedSubject(request.email, async (tx) => {
-      const fresh = await tx.privacyRequest.findUnique({ where: { id: requestId } });
-      if (
-        !fresh ||
-        fresh.email !== request.email ||
-        !fresh.verificationTokenHash ||
-        fresh.status !== PrivacyRequestStatus.PENDING ||
-        (fresh.type !== 'EXPORT' && fresh.type !== 'DELETE')
-      ) {
-        return;
-      }
+    await this.lockSubject(tx, request.email);
+    const fresh = await tx.privacyRequest.findUnique({ where: { id: requestId } });
+    if (
+      !fresh ||
+      fresh.email !== request.email ||
+      !fresh.verificationTokenHash ||
+      fresh.status !== PrivacyRequestStatus.PENDING ||
+      (fresh.type !== 'EXPORT' && fresh.type !== 'DELETE')
+    ) {
+      return;
+    }
 
-      const locale = this.locale(fresh.locale);
-      const token = this.derivePrivacyToken(requestId, fresh.type);
-      const base = process.env.WEB_URL ?? 'http://localhost:3000';
-      // O fragmento não é enviado ao servidor web nem em Referer, evitando token em access logs.
-      const url = `${base}/${locale}/privacidade/verify#token=${encodeURIComponent(token)}`;
-      const texts = privacyCopy[locale];
-      await this.email.send({
-        to: fresh.email,
-        subject: texts.subject,
-        text: `${texts.text}\n\n${url}`,
-        html: this.layout(texts.title, texts.text, texts.button, url),
-      });
+    const locale = this.locale(fresh.locale);
+    const token = this.derivePrivacyToken(requestId, fresh.type);
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    // O fragmento não é enviado ao servidor web nem em Referer, evitando token em access logs.
+    const url = `${base}/${locale}/privacidade/verify#token=${encodeURIComponent(token)}`;
+    const texts = privacyCopy[locale];
+    await this.email.send({
+      to: fresh.email,
+      subject: texts.subject,
+      text: `${texts.text}\n\n${url}`,
+      html: this.layout(texts.title, texts.text, texts.button, url),
     });
   }
 
-  private async withLockedSubject<T>(
-    email: string,
-    execute: (tx: Prisma.TransactionClient) => Promise<T>,
-  ): Promise<T> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const subjectKey = this.privacySubjectKey(email);
-        await tx.$queryRaw(Prisma.sql`
-          SELECT 1 AS acquired
-          FROM pg_advisory_xact_lock(hashtextextended(${subjectKey}, 0))
-        `);
-        return execute(tx);
-      },
-      { maxWait: 5_000, timeout: SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS },
-    );
+  private async lockSubject(tx: Prisma.TransactionClient, email: string): Promise<void> {
+    const subjectKey = this.privacySubjectKey(email);
+    await tx.$executeRaw(Prisma.sql`SET LOCAL lock_timeout = '5000ms'`);
+    await tx.$queryRaw(Prisma.sql`
+      SELECT 1 AS acquired
+      FROM pg_advisory_xact_lock(hashtextextended(${subjectKey}, 0))
+    `);
   }
 
   private privacySubjectKey(email: string): string {
@@ -351,6 +363,7 @@ export class NotificationConsumer {
   private safeFailureReason(error: unknown): string {
     if (error instanceof SyntaxError) return 'INVALID_EVENT_PAYLOAD';
     const message = error instanceof Error ? error.message : '';
+    if (message === 'INVALID_EVENT_ENVELOPE') return message;
     if (
       /^(?:EMAIL_(?:SMTP|SENDGRID)_(?:REJECTED_(?:\d{3}|UNKNOWN)|TIMEOUT|CONNECTION_FAILED)|WHATSAPP_(?:REJECTED_\d{3}|TIMEOUT|CONNECTION_FAILED))$/.test(
         message,

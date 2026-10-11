@@ -169,9 +169,193 @@ test('falha exaurida é enviada para a DLQ com motivo', { timeout: 10_000 }, asy
   });
 
   const deadLetter = await waitForMessage(channel, DLQ);
-  assert.match(String(deadLetter.properties.headers?.['x-fad-dead-letter-reason']), /JSON/);
+  assert.equal(
+    String(deadLetter.properties.headers?.['x-fad-dead-letter-reason']),
+    'INVALID_EVENT_ENVELOPE',
+  );
   assert.equal(deadLetter.fields.routingKey, 'integration.dlq');
 });
+
+test(
+  'evento de notificação duplicado simultâneo produz um único efeito externo',
+  { timeout: 15_000 },
+  async () => {
+    const requestId = randomUUID();
+    const eventId = randomUUID();
+    const correlationId = randomUUID();
+    await prisma.privacyRequest.create({
+      data: {
+        id: requestId,
+        email: `idempotencia-${requestId}@example.com`,
+        type: PrivacyRequestType.EXPORT,
+        status: PrivacyRequestStatus.PENDING,
+        locale: 'PT_BR',
+        verificationTokenHash: randomUUID(),
+        verificationExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    let sends = 0;
+    const consumer = new NotificationConsumer(prisma, rabbit);
+    const internals = consumer as unknown as {
+      email: { send: () => Promise<void> };
+    };
+    internals.email = {
+      send: async () => {
+        sends += 1;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      },
+    };
+    await consumer.start();
+
+    const body = Buffer.from(
+      JSON.stringify({
+        eventId,
+        eventName: 'privacy.verification.requested',
+        occurredAt: new Date().toISOString(),
+        correlationId,
+        version: 1,
+        payload: { requestId },
+      }),
+    );
+    const channel = await rabbit.connect();
+    channel.publish(EVENTS_EXCHANGE, 'privacy.verification.requested', body, {
+      persistent: true,
+      messageId: eventId,
+      correlationId,
+    });
+    channel.publish(EVENTS_EXCHANGE, 'privacy.verification.requested', body, {
+      persistent: true,
+      messageId: eventId,
+      correlationId,
+    });
+    await channel.waitForConfirms();
+
+    await waitFor(
+      async () =>
+        (await prisma.processedEvent.count({
+          where: { eventId, consumer: 'worker.notifications.v1' },
+        })) === 1,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    assert.equal(sends, 1);
+  },
+);
+
+test(
+  'contenção entre eventos do mesmo titular falha antes do envio e o retry produz um único efeito',
+  { timeout: 20_000 },
+  async () => {
+    const requestId = randomUUID();
+    const firstEventId = randomUUID();
+    const secondEventId = randomUUID();
+    const email = `contencao-${requestId}@example.com`;
+    await prisma.privacyRequest.create({
+      data: {
+        id: requestId,
+        email,
+        type: PrivacyRequestType.EXPORT,
+        status: PrivacyRequestStatus.PENDING,
+        locale: 'PT_BR',
+        verificationTokenHash: randomUUID(),
+        verificationExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    let sends = 0;
+    let retries = 0;
+    let acknowledgements = 0;
+    let markFirstSendStarted!: () => void;
+    const firstSendStarted = new Promise<void>((resolve) => (markFirstSendStarted = resolve));
+    let releaseFirstSend!: () => void;
+    const firstSendMayFinish = new Promise<void>((resolve) => (releaseFirstSend = resolve));
+    const isolatedRabbit = {
+      ack: () => {
+        acknowledgements += 1;
+      },
+      retry: async () => {
+        retries += 1;
+      },
+      deadLetter: async () => undefined,
+    };
+    const consumer = new NotificationConsumer(prisma, isolatedRabbit as never);
+    const internals = consumer as unknown as {
+      email: { send: () => Promise<void> };
+      handle: (message: amqp.ConsumeMessage) => Promise<void>;
+    };
+    internals.email = {
+      send: async () => {
+        sends += 1;
+        if (sends === 1) {
+          markFirstSendStarted();
+          await firstSendMayFinish;
+        }
+      },
+    };
+
+    const notificationMessage = (eventId: string, retryCount = 0): amqp.ConsumeMessage => ({
+      content: Buffer.from(
+        JSON.stringify({
+          eventId,
+          eventName: 'privacy.verification.requested',
+          occurredAt: new Date().toISOString(),
+          correlationId: randomUUID(),
+          version: 1,
+          payload: { requestId },
+        }),
+      ),
+      fields: {
+        consumerTag: 'integration',
+        deliveryTag: 1,
+        redelivered: retryCount > 0,
+        exchange: EVENTS_EXCHANGE,
+        routingKey: 'privacy.verification.requested',
+      },
+      properties: {
+        contentType: 'application/json',
+        contentEncoding: undefined,
+        headers: { 'x-fad-retry-count': retryCount },
+        deliveryMode: 2,
+        priority: undefined,
+        correlationId: randomUUID(),
+        replyTo: undefined,
+        expiration: undefined,
+        messageId: eventId,
+        timestamp: Date.now(),
+        type: undefined,
+        userId: undefined,
+        appId: undefined,
+        clusterId: undefined,
+      },
+    });
+
+    const first = internals.handle(notificationMessage(firstEventId));
+    await firstSendStarted;
+    await internals.handle(notificationMessage(secondEventId));
+
+    assert.equal(sends, 1);
+    assert.equal(retries, 1);
+    assert.equal(
+      await prisma.processedEvent.count({
+        where: { eventId: secondEventId, consumer: 'worker.notifications.v1' },
+      }),
+      0,
+    );
+
+    releaseFirstSend();
+    await first;
+    await internals.handle(notificationMessage(secondEventId, 1));
+
+    assert.equal(sends, 2);
+    assert.equal(acknowledgements, 2);
+    assert.equal(
+      await prisma.processedEvent.count({
+        where: { eventId: secondEventId, consumer: 'worker.notifications.v1' },
+      }),
+      1,
+    );
+  },
+);
 
 test(
   'mantém o lock do titular além de 5s até o efeito externo terminar',

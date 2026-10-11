@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import net from 'node:net';
 import { afterEach, test } from 'node:test';
 import { NewsletterTokenPurpose } from '@prisma/client';
 import type { ConsumeMessage } from 'amqplib';
+import { parseEventEnvelope } from '../src/domain/event-envelope.js';
 import { RabbitConnection } from '../src/infra/rabbitmq.js';
+import { ManagementServer } from '../src/infra/management-server.js';
 import { validateWorkerSecurityConfig } from '../src/infra/security-config.js';
+import { WorkerMetrics } from '../src/infra/worker-metrics.js';
 import { EmailSender } from '../src/services/email-sender.js';
 import { NotificationConsumer } from '../src/services/notification-consumer.js';
 import { PrivacyRetentionService } from '../src/services/privacy-retention.js';
+import { OutboxDispatcher } from '../src/services/outbox-dispatcher.js';
 import { WhatsAppSender } from '../src/services/whatsapp-sender.js';
 
 const originalEnv = { ...process.env };
@@ -18,7 +23,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-function message(routingKey = 'contact.created'): ConsumeMessage {
+function message(routingKey = 'contact.submitted'): ConsumeMessage {
   return {
     content: Buffer.from('{"ok":true}'),
     fields: {
@@ -51,8 +56,10 @@ test('RabbitMQ republica retry com contador e confirma a mensagem original', asy
   const rabbit = new RabbitConnection();
   const published: unknown[][] = [];
   let acked = false;
+  let confirmPublish!: () => void;
+  const brokerConfirmation = new Promise<void>((resolve) => (confirmPublish = resolve));
 
-  const fakeChannel = {
+  const fakeChannel = Object.assign(new EventEmitter(), {
     publish: (...args: unknown[]) => {
       published.push(args);
       return true;
@@ -60,7 +67,9 @@ test('RabbitMQ republica retry com contador e confirma a mensagem original', asy
     ack: () => {
       acked = true;
     },
-  };
+    waitForConfirms: () => brokerConfirmation,
+    close: async () => undefined,
+  });
 
   (
     rabbit as unknown as {
@@ -69,12 +78,17 @@ test('RabbitMQ republica retry com contador e confirma a mensagem original', asy
   ).channel = fakeChannel;
 
   const input = message();
-  await rabbit.retry(input, 1);
+  const retry = rabbit.retry(input, 1);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(acked, false);
+  confirmPublish();
+  await retry;
 
   assert.equal(acked, true);
   assert.equal(published.length, 1);
   assert.equal(published[0]?.[0], 'fad.events.retry');
-  assert.equal(published[0]?.[1], 'contact.created');
+  assert.equal(published[0]?.[1], 'contact.submitted');
 
   const options = published[0]?.[3] as {
     expiration?: string;
@@ -89,7 +103,7 @@ test('RabbitMQ envia mensagens esgotadas para a DLX', async () => {
   const published: unknown[][] = [];
   let acked = false;
 
-  const fakeChannel = {
+  const fakeChannel = Object.assign(new EventEmitter(), {
     publish: (...args: unknown[]) => {
       published.push(args);
       return true;
@@ -97,7 +111,9 @@ test('RabbitMQ envia mensagens esgotadas para a DLX', async () => {
     ack: () => {
       acked = true;
     },
-  };
+    waitForConfirms: async () => undefined,
+    close: async () => undefined,
+  });
 
   (
     rabbit as unknown as {
@@ -114,6 +130,238 @@ test('RabbitMQ envia mensagens esgotadas para a DLX', async () => {
     headers?: Record<string, unknown>;
   };
   assert.equal(options.headers?.['x-fad-dead-letter-reason'], 'falha definitiva');
+});
+
+test('Outbox só marca evento como publicado após confirmação do broker', async () => {
+  let confirmPublish!: () => void;
+  const brokerConfirmation = new Promise<void>((resolve) => (confirmPublish = resolve));
+  const updates: unknown[] = [];
+  const prisma = {
+    outboxEvent: {
+      update: async (input: unknown) => {
+        updates.push(input);
+      },
+    },
+  };
+  const channel = Object.assign(new EventEmitter(), {
+    publish: () => true,
+  });
+  const rabbit = { confirmPublish: () => brokerConfirmation };
+  const dispatcher = new OutboxDispatcher(prisma as never, rabbit as never) as unknown as {
+    publish: (channel: unknown, event: Record<string, unknown>) => Promise<void>;
+  };
+  const publishing = dispatcher.publish(channel, {
+    id: '11111111-1111-4111-8111-111111111111',
+    eventName: 'integration.test',
+    version: 1,
+    correlationId: '22222222-2222-4222-8222-222222222222',
+    payload: { safe: true },
+    occurredAt: new Date('2026-10-11T12:00:00.000Z'),
+    attempts: 0,
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(updates.length, 0);
+  confirmPublish();
+  await publishing;
+  assert.equal(updates.length, 1);
+});
+
+test('RabbitMQ não confirma a origem quando o broker rejeita a publicação', async () => {
+  const rabbit = new RabbitConnection(new WorkerMetrics(), 50);
+  let acked = false;
+  let closed = false;
+  const channel = Object.assign(new EventEmitter(), {
+    publish: () => true,
+    ack: () => {
+      acked = true;
+    },
+    waitForConfirms: async () => {
+      throw new Error('broker nack');
+    },
+    close: async () => {
+      closed = true;
+      channel.emit('close');
+    },
+  });
+  const internals = rabbit as unknown as {
+    connection: object | null;
+    channel: typeof channel | null;
+    watchChannel: (current: typeof channel) => void;
+  };
+  internals.connection = { close: async () => undefined };
+  internals.channel = channel;
+  internals.watchChannel(channel);
+
+  await assert.rejects(rabbit.retry(message(), 0), /RABBITMQ_PUBLISH_CONFIRMATION_FAILED/);
+  assert.equal(acked, false);
+  assert.equal(closed, true);
+  assert.equal(rabbit.isConnected(), false);
+});
+
+test('RabbitMQ abandona espera por drain quando o canal fecha e invalida readiness', async () => {
+  const rabbit = new RabbitConnection(new WorkerMetrics(), 50);
+  let acked = false;
+  const channel = Object.assign(new EventEmitter(), {
+    publish: () => false,
+    ack: () => {
+      acked = true;
+    },
+    waitForConfirms: async () => undefined,
+    close: async () => channel.emit('close'),
+  });
+  const internals = rabbit as unknown as {
+    connection: object | null;
+    channel: typeof channel | null;
+    watchChannel: (current: typeof channel) => void;
+  };
+  internals.connection = { close: async () => undefined };
+  internals.channel = channel;
+  internals.watchChannel(channel);
+
+  const retrying = rabbit.retry(message(), 0);
+  await new Promise((resolve) => setImmediate(resolve));
+  channel.emit('close');
+
+  await assert.rejects(retrying, /RABBITMQ_PUBLISH_CONFIRMATION_FAILED/);
+  assert.equal(acked, false);
+  assert.equal(rabbit.isConnected(), false);
+});
+
+test('RabbitMQ faz fail-fast sem aguardar close travado e impede falso ready', async () => {
+  const fatalCodes: string[] = [];
+  const rabbit = new RabbitConnection(new WorkerMetrics(), 50, (code) => fatalCodes.push(code));
+  let acked = false;
+  const never = new Promise<void>(() => undefined);
+  const channel = Object.assign(new EventEmitter(), {
+    publish: () => true,
+    ack: () => {
+      acked = true;
+    },
+    waitForConfirms: () => never,
+    close: () => never,
+  });
+  const internals = rabbit as unknown as {
+    connection: { close: () => Promise<void> } | null;
+    channel: typeof channel | null;
+    watchChannel: (current: typeof channel) => void;
+  };
+  internals.connection = { close: () => never };
+  internals.channel = channel;
+  internals.watchChannel(channel);
+
+  const startedAt = Date.now();
+  await assert.rejects(rabbit.retry(message(), 0), /RABBITMQ_PUBLISH_CONFIRMATION_FAILED/);
+
+  assert.ok(Date.now() - startedAt < 150);
+  assert.equal(acked, false);
+  assert.equal(rabbit.isConnected(), false);
+  assert.deepEqual(fatalCodes, ['RABBITMQ_PUBLISH_CONFIRMATION_FAILED']);
+  await assert.rejects(rabbit.connect(), /RABBITMQ_RESTART_REQUIRED/);
+});
+
+test('RabbitMQ registra os contratos canônicos e mantém aliases legados', async () => {
+  const bindings: Array<[string, string, string]> = [];
+  const channel = {
+    assertExchange: async () => undefined,
+    assertQueue: async () => ({ queue: 'test' }),
+    bindQueue: async (queue: string, exchange: string, routingKey: string) => {
+      bindings.push([queue, exchange, routingKey]);
+    },
+  };
+  const rabbit = new RabbitConnection() as unknown as {
+    setupTopology: (channel: unknown) => Promise<void>;
+  };
+
+  await rabbit.setupTopology(channel);
+  const routingKeys = bindings.map((binding) => binding[2]);
+  assert.ok(routingKeys.includes('contact.submitted'));
+  assert.ok(routingKeys.includes('newsletter.subscribed'));
+  assert.ok(routingKeys.includes('contact.created'));
+  assert.ok(routingKeys.includes('newsletter.confirmation.requested'));
+});
+
+test('valida envelope de evento sem refletir payload inválido no erro', () => {
+  const valid = parseEventEnvelope(
+    Buffer.from(
+      JSON.stringify({
+        eventId: '11111111-1111-4111-8111-111111111111',
+        eventName: 'contact.submitted',
+        occurredAt: '2026-10-11T12:00:00.000Z',
+        correlationId: '22222222-2222-4222-8222-222222222222',
+        version: 1,
+        payload: { contactMessageId: '33333333-3333-4333-8333-333333333333' },
+      }),
+    ),
+  );
+  assert.equal(valid.eventName, 'contact.submitted');
+
+  assert.throws(
+    () => parseEventEnvelope(Buffer.from('{"email":"titular@example.com"')),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, 'INVALID_EVENT_ENVELOPE');
+      assert.doesNotMatch(error.message, /titular@example\.com/);
+      return true;
+    },
+  );
+  assert.throws(
+    () =>
+      parseEventEnvelope(
+        Buffer.from(
+          JSON.stringify({
+            eventId: 'não-é-uuid',
+            eventName: 'contact.submitted',
+            occurredAt: 'ontem',
+            correlationId: 'não-é-uuid',
+            version: 0,
+            payload: [],
+          }),
+        ),
+      ),
+    /INVALID_EVENT_ENVELOPE/,
+  );
+});
+
+test('métricas do worker expõem contadores operacionais sem labels de alta cardinalidade', () => {
+  const metrics = new WorkerMetrics();
+  metrics.increment('notification_processed');
+  metrics.increment('retry_published');
+  metrics.increment('retry_published');
+  const output = metrics.toPrometheus();
+
+  assert.match(output, /fad_worker_notification_processed_total 1/);
+  assert.match(output, /fad_worker_retry_published_total 2/);
+  assert.match(output, /fad_worker_dead_letter_published_total 0/);
+  assert.doesNotMatch(output, /eventId|correlationId|email/);
+});
+
+test('servidor de gestão protege métricas em produção e expõe health isolado', async () => {
+  process.env.NODE_ENV = 'production';
+  process.env.METRICS_ENABLED = 'true';
+  process.env.METRICS_TOKEN = 'm'.repeat(64);
+  process.env.WORKER_MANAGEMENT_HOST = '127.0.0.1';
+  process.env.WORKER_MANAGEMENT_PORT = '0';
+  const server = new ManagementServer(async () => true, new WorkerMetrics());
+  await server.start();
+  const port = server.getPort();
+  assert.ok(port);
+
+  try {
+    const live = await fetch(`http://127.0.0.1:${port}/health/live`);
+    assert.equal(live.status, 200);
+    const ready = await fetch(`http://127.0.0.1:${port}/health/ready`);
+    assert.equal(ready.status, 200);
+    const unauthorized = await fetch(`http://127.0.0.1:${port}/metrics`);
+    assert.equal(unauthorized.status, 401);
+    const authorized = await fetch(`http://127.0.0.1:${port}/metrics`, {
+      headers: { 'x-metrics-token': 'm'.repeat(64) },
+    });
+    assert.equal(authorized.status, 200);
+    assert.match(await authorized.text(), /fad_worker_uptime_seconds/);
+  } finally {
+    await server.stop();
+  }
 });
 
 test('EmailSender usa SendGrid sem acessar SMTP quando configurado', async () => {
@@ -322,6 +570,7 @@ test('NotificationConsumer envia token LGPD no fragmento e não na query string'
       },
       $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $executeRaw: async () => 0,
           $queryRaw: async () => [{ acquired: 1 }],
           privacyRequest: { findUnique: async () => request },
         }),
@@ -366,6 +615,7 @@ test('NotificationConsumer suprime envio quando o DELETE vence antes da releitur
       privacyRequest: { findUnique: async () => request },
       $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $executeRaw: async () => 0,
           $queryRaw: async () => [{ acquired: 1 }],
           privacyRequest: { findUnique: async () => null },
         }),
@@ -481,5 +731,9 @@ test('worker exige segredo dedicado e WEB_URL HTTPS em produção', () => {
   assert.throws(() => validateWorkerSecurityConfig(), /HTTPS/);
 
   process.env.WEB_URL = 'https://portfolio.example.com';
+  delete process.env.METRICS_TOKEN;
+  assert.throws(() => validateWorkerSecurityConfig(), /METRICS_TOKEN/);
+
+  process.env.METRICS_TOKEN = 'm'.repeat(64);
   assert.doesNotThrow(() => validateWorkerSecurityConfig());
 });

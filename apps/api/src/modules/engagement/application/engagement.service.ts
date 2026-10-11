@@ -39,6 +39,11 @@ const messages = {
   },
 } satisfies Record<PublicLocale, Record<string, string>>;
 
+const SUBJECT_TRANSACTION_OPTIONS = {
+  maxWait: 5_000,
+  timeout: 30_000,
+} as const;
+
 @Injectable()
 export class EngagementService {
   constructor(
@@ -86,7 +91,7 @@ export class EngagementService {
       await tx.outboxEvent.create({
         data: {
           id: eventId,
-          eventName: 'contact.created',
+          eventName: 'contact.submitted',
           aggregateType: 'ContactMessage',
           aggregateId: messageId,
           correlationId: eventCorrelationId,
@@ -95,7 +100,7 @@ export class EngagementService {
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].contact };
   }
@@ -180,7 +185,7 @@ export class EngagementService {
 
       await tx.outboxEvent.create({
         data: {
-          eventName: 'newsletter.confirmation.requested',
+          eventName: 'newsletter.subscribed',
           aggregateType: 'NewsletterSubscriber',
           aggregateId: subscriberId,
           correlationId: correlation,
@@ -191,7 +196,7 @@ export class EngagementService {
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].subscribe };
   }
@@ -273,7 +278,7 @@ export class EngagementService {
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].confirmed };
   }
@@ -320,7 +325,7 @@ export class EngagementService {
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].unsubscribed };
   }
