@@ -56,6 +56,7 @@ export class EngagementService {
     }
 
     const email = body.email.trim().toLowerCase();
+    const startedAt = new Date();
     const ipHash = this.hashIp(ip);
 
     await Promise.all([
@@ -68,6 +69,7 @@ export class EngagementService {
     const eventCorrelationId = this.safeUuid(correlationId) ?? randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, email, startedAt))) return;
       await tx.contactMessage.create({
         data: {
           id: messageId,
@@ -90,11 +92,6 @@ export class EngagementService {
           correlationId: eventCorrelationId,
           payload: {
             contactMessageId: messageId,
-            name: body.name.trim(),
-            email,
-            subject: body.subject.trim(),
-            message: body.message.trim(),
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
@@ -112,6 +109,7 @@ export class EngagementService {
     }
 
     const email = body.email.trim().toLowerCase();
+    const startedAt = new Date();
     const ipHash = this.hashIp(ip);
 
     await Promise.all([
@@ -135,6 +133,7 @@ export class EngagementService {
     const correlation = this.safeUuid(correlationId) ?? randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, email, startedAt))) return;
       if (current) {
         await tx.newsletterSubscriber.update({
           where: { id: current.id },
@@ -189,8 +188,6 @@ export class EngagementService {
             subscriberId,
             tokenId,
             purpose: NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
-            email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
@@ -200,6 +197,7 @@ export class EngagementService {
   }
 
   async confirm(token: string) {
+    const startedAt = new Date();
     const tokenHash = this.hashValue(token);
     const row = await this.prisma.newsletterToken.findUnique({
       where: { tokenHash },
@@ -228,6 +226,7 @@ export class EngagementService {
     const correlationId = randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, row.subscriber.email, startedAt))) return;
       await tx.newsletterToken.update({
         where: { id: row.id },
         data: { usedAt: row.usedAt ?? new Date() },
@@ -271,8 +270,6 @@ export class EngagementService {
             subscriberId: row.subscriberId,
             unsubscribeTokenId,
             purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
-            email: row.subscriber.email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
@@ -282,6 +279,7 @@ export class EngagementService {
   }
 
   async unsubscribe(token: string) {
+    const startedAt = new Date();
     const tokenHash = this.hashValue(token);
     const row = await this.prisma.newsletterToken.findUnique({
       where: { tokenHash },
@@ -298,6 +296,7 @@ export class EngagementService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, row.subscriber.email, startedAt))) return;
       await tx.newsletterToken.update({
         where: { id: row.id },
         data: { usedAt: row.usedAt ?? new Date() },
@@ -318,8 +317,6 @@ export class EngagementService {
           aggregateId: row.subscriberId,
           payload: {
             subscriberId: row.subscriberId,
-            email: row.subscriber.email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
@@ -391,6 +388,28 @@ export class EngagementService {
 
   private hashValue(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  private async mayPersistSubject(
+    tx: Prisma.TransactionClient,
+    email: string,
+    startedAt: Date,
+  ): Promise<boolean> {
+    const emailKey = this.privacySubjectKey(email);
+    await tx.$queryRaw(Prisma.sql`
+      SELECT 1 AS acquired
+      FROM pg_advisory_xact_lock(hashtextextended(${emailKey}, 0))
+    `);
+    const tombstone = await tx.privacyErasureTombstone.findUnique({ where: { emailKey } });
+    return !tombstone || tombstone.erasedAt.getTime() <= startedAt.getTime();
+  }
+
+  private privacySubjectKey(email: string): string {
+    const secret = process.env.PRIVACY_HASH_SECRET?.trim();
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
+      throw new Error('PRIVACY_HASH_SECRET precisa ter pelo menos 32 caracteres.');
+    }
+    return createHmac('sha256', secret).update(email).digest('hex');
   }
 
   private safeUuid(value: string | undefined): string | null {

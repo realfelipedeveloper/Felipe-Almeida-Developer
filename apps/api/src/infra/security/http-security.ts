@@ -49,6 +49,13 @@ export function validateProductionSecurityConfig(): void {
   assertStrongSecret('JWT_ACCESS_SECRET');
   assertStrongSecret('JWT_REFRESH_SECRET');
 
+  for (const name of ['PRIVACY_REQUEST_TOKEN_SECRET', 'PRIVACY_HASH_SECRET'] as const) {
+    const value = process.env[name]?.trim();
+    if (!value || value.length < 32 || value.startsWith('gere-')) {
+      throw new Error(`${name} precisa ser configurado em produção com pelo menos 32 caracteres.`);
+    }
+  }
+
   const webOrigin = asHttpOrigin(process.env.WEB_URL);
   if (!webOrigin || !webOrigin.startsWith('https://')) {
     throw new Error('WEB_URL precisa utilizar HTTPS em produção.');

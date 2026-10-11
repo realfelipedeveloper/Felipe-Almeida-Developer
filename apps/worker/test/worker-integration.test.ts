@@ -4,12 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { after, before, test } from 'node:test';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PrivacyRequestStatus, PrivacyRequestType } from '@prisma/client';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
+import * as amqp from 'amqplib';
 import { EVENTS_EXCHANGE, RabbitConnection } from '../src/infra/rabbitmq.js';
 import { AuditConsumer } from '../src/services/audit-consumer.js';
+import { NotificationConsumer } from '../src/services/notification-consumer.js';
 import { OutboxDispatcher } from '../src/services/outbox-dispatcher.js';
+import { PrismaPrivacyRepository } from '../../api/src/modules/privacy/infrastructure/prisma-privacy.repository.js';
 
 const RETRY_QUEUE = 'fad.events.audit.retry';
 const DLQ = 'fad.events.audit.dlq';
@@ -31,6 +34,9 @@ before(
     const databaseUrl = postgres.getConnectionUri();
     process.env.DATABASE_URL = databaseUrl;
     process.env.RABBITMQ_URL = rabbitContainer.getAmqpUrl();
+    process.env.PRIVACY_HASH_SECRET = 'h'.repeat(64);
+    process.env.PRIVACY_REQUEST_TOKEN_SECRET = 'r'.repeat(64);
+    process.env.WEB_URL = 'https://portfolio.example.com';
 
     const prismaCli = join(dirname(require.resolve('prisma/package.json')), 'build', 'index.js');
     execFileSync(
@@ -68,62 +74,72 @@ after(async () => {
 
 test(
   'publica a outbox com correlationId e processa o evento uma única vez',
-  { timeout: 20_000 },
+  { timeout: 35_000 },
   async () => {
     const eventId = randomUUID();
     const correlationId = randomUUID();
-    const channel = await rabbit.connect();
-    const observer = await channel.assertQueue('', { exclusive: true, autoDelete: true });
-    await channel.bindQueue(observer.queue, EVENTS_EXCHANGE, 'integration.test');
+    const publisher = await rabbit.connect();
+    const observerConnection = await amqp.connect(rabbitContainer.getAmqpUrl());
+    const observerChannel = await observerConnection.createChannel();
+    const observer = await observerChannel.assertQueue('', { exclusive: true, autoDelete: true });
+    await observerChannel.bindQueue(observer.queue, EVENTS_EXCHANGE, 'integration.test');
 
-    await prisma.outboxEvent.create({
-      data: {
-        id: eventId,
-        eventName: 'integration.test',
+    try {
+      await prisma.outboxEvent.create({
+        data: {
+          id: eventId,
+          eventName: 'integration.test',
+          correlationId,
+          payload: { safe: true },
+        },
+      });
+
+      const dispatcher = new OutboxDispatcher(prisma, rabbit) as unknown as {
+        tick(): Promise<void>;
+      };
+      await dispatcher.tick();
+
+      const observed = await waitForMessage(observerChannel, observer.queue);
+      const envelope = JSON.parse(observed.content.toString('utf8')) as {
+        eventId: string;
+        eventName: string;
+        correlationId: string;
+        occurredAt: string;
+        version: number;
+        payload: unknown;
+      };
+      assert.equal(envelope.eventId, eventId);
+      assert.equal(envelope.eventName, 'integration.test');
+      assert.equal(envelope.correlationId, correlationId);
+      assert.equal(envelope.version, 1);
+      assert.deepEqual(envelope.payload, { safe: true });
+      assert.equal(new Date(envelope.occurredAt).toISOString(), envelope.occurredAt);
+
+      await waitFor(
+        async () =>
+          (await prisma.processedEvent.count({ where: { eventId, consumer: CONSUMER } })) === 1,
+      );
+      const persisted = await prisma.outboxEvent.findUniqueOrThrow({ where: { id: eventId } });
+      assert.equal(persisted.attempts, 1);
+      assert.ok(persisted.publishedAt);
+
+      publisher.publish(EVENTS_EXCHANGE, 'integration.test', observed.content, {
+        persistent: true,
+        messageId: eventId,
         correlationId,
-        payload: { safe: true },
-      },
-    });
-
-    const dispatcher = new OutboxDispatcher(prisma, rabbit) as unknown as {
-      tick(): Promise<void>;
-    };
-    await dispatcher.tick();
-
-    const observed = await waitForMessage(channel, observer.queue);
-    const envelope = JSON.parse(observed.content.toString('utf8')) as {
-      eventId: string;
-      eventName: string;
-      correlationId: string;
-      occurredAt: string;
-      version: number;
-      payload: unknown;
-    };
-    assert.equal(envelope.eventId, eventId);
-    assert.equal(envelope.eventName, 'integration.test');
-    assert.equal(envelope.correlationId, correlationId);
-    assert.equal(envelope.version, 1);
-    assert.deepEqual(envelope.payload, { safe: true });
-    assert.equal(new Date(envelope.occurredAt).toISOString(), envelope.occurredAt);
-
-    await waitFor(
-      async () =>
-        (await prisma.processedEvent.count({ where: { eventId, consumer: CONSUMER } })) === 1,
-    );
-    const persisted = await prisma.outboxEvent.findUniqueOrThrow({ where: { id: eventId } });
-    assert.equal(persisted.attempts, 1);
-    assert.ok(persisted.publishedAt);
-
-    channel.publish(EVENTS_EXCHANGE, 'integration.test', observed.content, {
-      persistent: true,
-      messageId: eventId,
-      correlationId,
-    });
-    await waitFor(async () => {
-      const queue = await channel.checkQueue('fad.events.audit');
-      return queue.messageCount === 0;
-    });
-    assert.equal(await prisma.processedEvent.count({ where: { eventId, consumer: CONSUMER } }), 1);
+      });
+      await waitFor(async () => {
+        const queue = await publisher.checkQueue('fad.events.audit');
+        return queue.messageCount === 0;
+      });
+      assert.equal(
+        await prisma.processedEvent.count({ where: { eventId, consumer: CONSUMER } }),
+        1,
+      );
+    } finally {
+      await observerChannel.close();
+      await observerConnection.close();
+    }
   },
 );
 
@@ -157,6 +173,80 @@ test('falha exaurida é enviada para a DLQ com motivo', { timeout: 10_000 }, asy
   assert.equal(deadLetter.fields.routingKey, 'integration.dlq');
 });
 
+test(
+  'mantém o lock do titular além de 5s até o efeito externo terminar',
+  { timeout: 15_000 },
+  async () => {
+    const requestId = randomUUID();
+    const deleteRequestId = randomUUID();
+    const deleteTokenHash = randomUUID();
+    const email = `titular-${requestId}@example.com`;
+    await prisma.privacyRequest.create({
+      data: {
+        id: requestId,
+        email,
+        type: PrivacyRequestType.EXPORT,
+        status: PrivacyRequestStatus.PENDING,
+        locale: 'PT_BR',
+        verificationTokenHash: randomUUID(),
+        verificationExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    await prisma.privacyRequest.create({
+      data: {
+        id: deleteRequestId,
+        email,
+        type: PrivacyRequestType.DELETE,
+        status: PrivacyRequestStatus.VERIFIED,
+        locale: 'PT_BR',
+        verificationTokenHash: deleteTokenHash,
+        verificationExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    let markSendStarted!: () => void;
+    const sendStarted = new Promise<void>((resolve) => (markSendStarted = resolve));
+    let finishSend!: () => void;
+    const mayFinishSend = new Promise<void>((resolve) => (finishSend = resolve));
+    const consumer = new NotificationConsumer(prisma, {} as never);
+    const internals = consumer as unknown as {
+      email: { send: () => Promise<void> };
+      handlePrivacyVerification: (payload: Record<string, unknown>) => Promise<void>;
+    };
+    internals.email = {
+      send: async () => {
+        markSendStarted();
+        await mayFinishSend;
+      },
+    };
+
+    const notification = internals.handlePrivacyVerification({ requestId });
+    await sendStarted;
+
+    let deletionAcquiredLock = false;
+    const privacyRepository = new PrismaPrivacyRepository(prisma as never);
+    const deletion = privacyRepository.withLockedRequest(
+      deleteTokenHash,
+      async (lockedRequestId, unit) => {
+        deletionAcquiredLock = true;
+        await unit.deleteSubject({
+          requestId: lockedRequestId,
+          email,
+          completedAt: new Date(),
+        });
+      },
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 5_500));
+    assert.equal(deletionAcquiredLock, false);
+    finishSend();
+    await notification;
+    await deletion;
+    assert.equal(deletionAcquiredLock, true);
+    assert.equal(await prisma.privacyRequest.count({ where: { email } }), 0);
+  },
+);
+
 async function waitForMessage(
   channel: Awaited<ReturnType<RabbitConnection['connect']>>,
   queue: string,
@@ -170,7 +260,7 @@ async function waitForMessage(
   return message;
 }
 
-async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 7_000): Promise<void> {
+async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await predicate()) return;

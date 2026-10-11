@@ -94,3 +94,29 @@ test('abre a navegação completa em viewport mobile', async ({ page }) => {
     page.getByRole('link', { name: translations['pt-BR'].newsletter, exact: true }),
   ).toBeVisible();
 });
+
+test('carrega analytics somente após consentimento e permite revogação', async ({ page }) => {
+  const analyticsRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/analytics-test.js')) analyticsRequests.push(request.url());
+  });
+
+  await page.goto('/pt-BR');
+  await expect(page.locator('script[data-fad-analytics]')).toHaveCount(0);
+  expect(analyticsRequests).toHaveLength(0);
+
+  await page.getByRole('button', { name: 'Preferências de cookies' }).click();
+  await page.getByRole('button', { name: 'Aceitar analytics' }).click();
+  await expect(page.locator('script[data-fad-analytics]')).toHaveCount(1);
+  await expect.poll(() => analyticsRequests.length).toBe(1);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('fad-cookie-consent')))
+    .toBe('analytics');
+
+  await page.getByRole('button', { name: 'Preferências de cookies' }).click();
+  await page.getByRole('button', { name: 'Somente essenciais' }).click();
+  await expect(page.locator('script[data-fad-analytics]')).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('fad-cookie-consent')))
+    .toBe('essential');
+});

@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { CookieConsent } from '@/components/cookie-consent';
+import { AnalyticsLoader } from '@/components/analytics-loader';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { isLocale, locales, type Locale } from '@/i18n/config';
@@ -64,6 +65,7 @@ export default async function LocaleLayout({
             rights={footer('rights')}
             privacy={footer('privacy')}
             cookies={footer('cookies')}
+            cookiePreferences={footer('cookiePreferences')}
             rss={footer('rss')}
           />
           <CookieConsent
@@ -76,6 +78,7 @@ export default async function LocaleLayout({
               policy: cookies('policy'),
             }}
           />
+          <AnalyticsLoader />
         </NextIntlClientProvider>
         <script
           dangerouslySetInnerHTML={{

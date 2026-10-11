@@ -80,6 +80,11 @@ enum ConsentCategory {
   ANALYTICS
 }
 
+enum ConsentSubjectKind {
+  ANONYMOUS_BROWSER
+  EMAIL
+}
+
 model Profile {
   id               String               @id @default(uuid()) @db.Uuid
   publicEmail      String?              @map("public_email") @db.VarChar(320)
@@ -563,6 +568,7 @@ model ConsentRecord {
   id            String          @id @default(uuid()) @db.Uuid
   subjectKey    String          @map("subject_key") @db.VarChar(128)
   category      ConsentCategory
+  subjectKind   ConsentSubjectKind @default(ANONYMOUS_BROWSER) @map("subject_kind")
   granted       Boolean
   policyVersion String          @map("policy_version") @db.VarChar(40)
   locale        Locale          @default(PT_BR)
@@ -579,6 +585,7 @@ model PrivacyRequest {
   email                 String               @db.VarChar(320)
   type                  PrivacyRequestType
   status                PrivacyRequestStatus @default(PENDING)
+  locale                Locale               @default(PT_BR)
   verificationTokenHash String?              @unique @map("verification_token_hash") @db.VarChar(128)
   verificationExpiresAt DateTime?            @map("verification_expires_at") @db.Timestamptz(3)
   verifiedAt            DateTime?            @map("verified_at") @db.Timestamptz(3)
@@ -589,6 +596,13 @@ model PrivacyRequest {
 
   @@index([email, status])
   @@map("privacy_requests")
+}
+
+model PrivacyErasureTombstone {
+  emailKey String   @id @map("email_key") @db.VarChar(128)
+  erasedAt DateTime @default(now()) @map("erased_at") @db.Timestamptz(3)
+
+  @@map("privacy_erasure_tombstones")
 }
 
 model OutboxEvent {

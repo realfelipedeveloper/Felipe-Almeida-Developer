@@ -1,4 +1,4 @@
-import { PrismaClient, NewsletterTokenPurpose } from '@prisma/client';
+import { NewsletterTokenPurpose, Prisma, PrismaClient, PrivacyRequestStatus } from '@prisma/client';
 import { createHmac } from 'node:crypto';
 import type { ConsumeMessage } from 'amqplib';
 import { RabbitConnection } from '../infra/rabbitmq.js';
@@ -8,6 +8,7 @@ import { WhatsAppSender } from './whatsapp-sender.js';
 
 const CONSUMER_NAME = 'worker.notifications.v1';
 const MAX_RETRIES = 5;
+const SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS = 25_000;
 
 type PublicLocale = 'pt-BR' | 'en' | 'es';
 
@@ -28,7 +29,8 @@ const copy = {
     confirmButton: 'Confirmar inscrição',
     welcomeSubject: 'Inscrição confirmada',
     welcomeTitle: 'Tudo certo.',
-    welcomeText: 'Sua inscrição foi confirmada. Você pode cancelar a qualquer momento pelo link abaixo.',
+    welcomeText:
+      'Sua inscrição foi confirmada. Você pode cancelar a qualquer momento pelo link abaixo.',
     unsubscribe: 'Cancelar inscrição',
     contactSubject: 'Novo contato pelo portfólio',
   },
@@ -39,7 +41,8 @@ const copy = {
     confirmButton: 'Confirm subscription',
     welcomeSubject: 'Subscription confirmed',
     welcomeTitle: 'You are all set.',
-    welcomeText: 'Your subscription is confirmed. You can unsubscribe at any time using the link below.',
+    welcomeText:
+      'Your subscription is confirmed. You can unsubscribe at any time using the link below.',
     unsubscribe: 'Unsubscribe',
     contactSubject: 'New portfolio contact',
   },
@@ -50,7 +53,8 @@ const copy = {
     confirmButton: 'Confirmar suscripción',
     welcomeSubject: 'Suscripción confirmada',
     welcomeTitle: 'Todo listo.',
-    welcomeText: 'Tu suscripción está confirmada. Puedes cancelarla cuando quieras desde el enlace inferior.',
+    welcomeText:
+      'Tu suscripción está confirmada. Puedes cancelarla cuando quieras desde el enlace inferior.',
     unsubscribe: 'Cancelar suscripción',
     contactSubject: 'Nuevo contacto desde el portafolio',
   },
@@ -59,10 +63,30 @@ const copy = {
 const passwordResetCopy = {
   subject: 'Recuperação de senha administrativa',
   title: 'Redefina sua senha.',
-  text:
-    'Recebemos uma solicitação para redefinir a senha do painel administrativo. O link abaixo é válido por 30 minutos e pode ser usado apenas uma vez. Se você não solicitou esta alteração, ignore esta mensagem.',
+  text: 'Recebemos uma solicitação para redefinir a senha do painel administrativo. O link abaixo é válido por 30 minutos e pode ser usado apenas uma vez. Se você não solicitou esta alteração, ignore esta mensagem.',
   button: 'Redefinir senha',
 };
+
+const privacyCopy = {
+  'pt-BR': {
+    subject: 'Confirme sua solicitação de privacidade',
+    title: 'Confirme sua identidade.',
+    text: 'Use o link abaixo em até 30 minutos para concluir a exportação ou exclusão solicitada.',
+    button: 'Verificar solicitação',
+  },
+  en: {
+    subject: 'Confirm your privacy request',
+    title: 'Confirm your identity.',
+    text: 'Use the link below within 30 minutes to complete the requested export or deletion.',
+    button: 'Verify request',
+  },
+  es: {
+    subject: 'Confirma tu solicitud de privacidad',
+    title: 'Confirma tu identidad.',
+    text: 'Usa el enlace en un plazo de 30 minutos para completar la exportación o eliminación solicitada.',
+    button: 'Verificar solicitud',
+  },
+} satisfies Record<PublicLocale, Record<string, string>>;
 
 export class NotificationConsumer {
   private readonly email = new EmailSender();
@@ -102,6 +126,8 @@ export class NotificationConsumer {
         await this.handleWelcome(event.payload);
       } else if (event.eventName === 'admin.password-reset.requested') {
         await this.handlePasswordReset(event.payload);
+      } else if (event.eventName === 'privacy.verification.requested') {
+        await this.handlePrivacyVerification(event.payload);
       }
 
       await this.prisma.processedEvent.create({
@@ -113,10 +139,8 @@ export class NotificationConsumer {
 
       this.rabbit.ack(message);
     } catch (error) {
-      const currentRetry = Number(
-        message.properties.headers?.['x-fad-retry-count'] ?? 0,
-      );
-      const reason = error instanceof Error ? error.message : String(error);
+      const currentRetry = Number(message.properties.headers?.['x-fad-retry-count'] ?? 0);
+      const reason = this.safeFailureReason(error);
 
       logger.error(
         {
@@ -143,83 +167,91 @@ export class NotificationConsumer {
       throw new Error('CONTACT_INBOX não configurado.');
     }
 
-    const name = String(payload.name ?? '');
-    const email = String(payload.email ?? '');
-    const subject = String(payload.subject ?? '');
-    const message = String(payload.message ?? '');
-    const locale = this.locale(payload.locale);
-    const texts = copy[locale];
+    const contactMessageId = String(payload.contactMessageId ?? '');
+    const contact = contactMessageId
+      ? await this.prisma.contactMessage.findUnique({ where: { id: contactMessageId } })
+      : null;
+    if (!contact || contact.email.endsWith('@privacy.invalid')) return;
+    await this.withLockedSubject(contact.email, async (tx) => {
+      const fresh = await tx.contactMessage.findUnique({ where: { id: contactMessageId } });
+      if (!fresh || fresh.email !== contact.email || fresh.email.endsWith('@privacy.invalid')) {
+        return;
+      }
+      const { name, email, subject, message } = fresh;
+      const locale = this.locale(fresh.locale);
+      const texts = copy[locale];
 
-    await this.email.send({
-      to: inbox,
-      subject: `${texts.contactSubject}: ${subject}`,
-      text: `Nome: ${name}\nE-mail: ${email}\nAssunto: ${subject}\n\n${message}`,
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#171717">
-          <h2>Novo contato pelo portfólio</h2>
-          <p><strong>Nome:</strong> ${this.escape(name)}</p>
-          <p><strong>E-mail:</strong> ${this.escape(email)}</p>
-          <p><strong>Assunto:</strong> ${this.escape(subject)}</p>
-          <hr />
-          <p>${this.escape(message).replace(/\n/g, '<br>')}</p>
-        </div>
-      `,
+      await this.email.send({
+        to: inbox,
+        subject: `${texts.contactSubject}: ${subject}`,
+        text: `Nome: ${name}\nE-mail: ${email}\nAssunto: ${subject}\n\n${message}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#171717">
+            <h2>Novo contato pelo portfólio</h2>
+            <p><strong>Nome:</strong> ${this.escape(name)}</p>
+            <p><strong>E-mail:</strong> ${this.escape(email)}</p>
+            <p><strong>Assunto:</strong> ${this.escape(subject)}</p>
+            <hr />
+            <p>${this.escape(message).replace(/\n/g, '<br>')}</p>
+          </div>
+        `,
+      });
+
+      await this.whatsapp.notifyContact({ name, email, subject });
     });
-
-    await this.whatsapp.notifyContact({ name, email, subject });
   }
 
   private async handleConfirmation(payload: Record<string, unknown>): Promise<void> {
-    const locale = this.locale(payload.locale);
-    const texts = copy[locale];
-    const email = String(payload.email ?? '');
     const subscriberId = String(payload.subscriberId ?? '');
     const tokenId = String(payload.tokenId ?? '');
-    const token = this.deriveToken(
-      tokenId,
-      subscriberId,
-      NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
-    );
-    const base = process.env.WEB_URL ?? 'http://localhost:3000';
-    const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    const subscriber = subscriberId
+      ? await this.prisma.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
+      : null;
+    if (!subscriber) return;
+    await this.withLockedSubject(subscriber.email, async (tx) => {
+      const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
+      if (!fresh || fresh.email !== subscriber.email) return;
+      const locale = this.locale(fresh.locale);
+      const texts = copy[locale];
+      const token = this.deriveToken(
+        tokenId,
+        subscriberId,
+        NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
+      );
+      const base = process.env.WEB_URL ?? 'http://localhost:3000';
+      const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
-    await this.email.send({
-      to: email,
-      subject: texts.confirmSubject,
-      text: `${texts.confirmText}\n\n${url}`,
-      html: this.layout(
-        texts.confirmTitle,
-        texts.confirmText,
-        texts.confirmButton,
-        url,
-      ),
+      await this.email.send({
+        to: fresh.email,
+        subject: texts.confirmSubject,
+        text: `${texts.confirmText}\n\n${url}`,
+        html: this.layout(texts.confirmTitle, texts.confirmText, texts.confirmButton, url),
+      });
     });
   }
 
   private async handleWelcome(payload: Record<string, unknown>): Promise<void> {
-    const locale = this.locale(payload.locale);
-    const texts = copy[locale];
-    const email = String(payload.email ?? '');
     const subscriberId = String(payload.subscriberId ?? '');
     const tokenId = String(payload.unsubscribeTokenId ?? '');
-    const token = this.deriveToken(
-      tokenId,
-      subscriberId,
-      NewsletterTokenPurpose.UNSUBSCRIBE,
-    );
-    const base = process.env.WEB_URL ?? 'http://localhost:3000';
-    const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+    const subscriber = subscriberId
+      ? await this.prisma.newsletterSubscriber.findUnique({ where: { id: subscriberId } })
+      : null;
+    if (!subscriber) return;
+    await this.withLockedSubject(subscriber.email, async (tx) => {
+      const fresh = await tx.newsletterSubscriber.findUnique({ where: { id: subscriberId } });
+      if (!fresh || fresh.email !== subscriber.email) return;
+      const locale = this.locale(fresh.locale);
+      const texts = copy[locale];
+      const token = this.deriveToken(tokenId, subscriberId, NewsletterTokenPurpose.UNSUBSCRIBE);
+      const base = process.env.WEB_URL ?? 'http://localhost:3000';
+      const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
 
-    await this.email.send({
-      to: email,
-      subject: texts.welcomeSubject,
-      text: `${texts.welcomeText}\n\n${url}`,
-      html: this.layout(
-        texts.welcomeTitle,
-        texts.welcomeText,
-        texts.unsubscribe,
-        url,
-      ),
+      await this.email.send({
+        to: fresh.email,
+        subject: texts.welcomeSubject,
+        text: `${texts.welcomeText}\n\n${url}`,
+        html: this.layout(texts.welcomeTitle, texts.welcomeText, texts.unsubscribe, url),
+      });
     });
   }
 
@@ -247,6 +279,86 @@ export class NotificationConsumer {
         url,
       ),
     });
+  }
+
+  private async handlePrivacyVerification(payload: Record<string, unknown>): Promise<void> {
+    const requestId = String(payload.requestId ?? '');
+    const request = requestId
+      ? await this.prisma.privacyRequest.findUnique({ where: { id: requestId } })
+      : null;
+    if (
+      !request ||
+      !request.verificationTokenHash ||
+      request.status !== PrivacyRequestStatus.PENDING
+    ) {
+      return;
+    }
+    if (!request.email || (request.type !== 'EXPORT' && request.type !== 'DELETE')) {
+      throw new Error('Evento de verificação de privacidade inválido.');
+    }
+    await this.withLockedSubject(request.email, async (tx) => {
+      const fresh = await tx.privacyRequest.findUnique({ where: { id: requestId } });
+      if (
+        !fresh ||
+        fresh.email !== request.email ||
+        !fresh.verificationTokenHash ||
+        fresh.status !== PrivacyRequestStatus.PENDING ||
+        (fresh.type !== 'EXPORT' && fresh.type !== 'DELETE')
+      ) {
+        return;
+      }
+
+      const locale = this.locale(fresh.locale);
+      const token = this.derivePrivacyToken(requestId, fresh.type);
+      const base = process.env.WEB_URL ?? 'http://localhost:3000';
+      // O fragmento não é enviado ao servidor web nem em Referer, evitando token em access logs.
+      const url = `${base}/${locale}/privacidade/verify#token=${encodeURIComponent(token)}`;
+      const texts = privacyCopy[locale];
+      await this.email.send({
+        to: fresh.email,
+        subject: texts.subject,
+        text: `${texts.text}\n\n${url}`,
+        html: this.layout(texts.title, texts.text, texts.button, url),
+      });
+    });
+  }
+
+  private async withLockedSubject<T>(
+    email: string,
+    execute: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const subjectKey = this.privacySubjectKey(email);
+        await tx.$queryRaw(Prisma.sql`
+          SELECT 1 AS acquired
+          FROM pg_advisory_xact_lock(hashtextextended(${subjectKey}, 0))
+        `);
+        return execute(tx);
+      },
+      { maxWait: 5_000, timeout: SUBJECT_LOCK_TRANSACTION_TIMEOUT_MS },
+    );
+  }
+
+  private privacySubjectKey(email: string): string {
+    const secret = process.env.PRIVACY_HASH_SECRET?.trim();
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
+      throw new Error('PRIVACY_HASH_SECRET precisa ter pelo menos 32 caracteres.');
+    }
+    return createHmac('sha256', secret).update(email).digest('hex');
+  }
+
+  private safeFailureReason(error: unknown): string {
+    if (error instanceof SyntaxError) return 'INVALID_EVENT_PAYLOAD';
+    const message = error instanceof Error ? error.message : '';
+    if (
+      /^(?:EMAIL_(?:SMTP|SENDGRID)_(?:REJECTED_(?:\d{3}|UNKNOWN)|TIMEOUT|CONNECTION_FAILED)|WHATSAPP_(?:REJECTED_\d{3}|TIMEOUT|CONNECTION_FAILED))$/.test(
+        message,
+      )
+    ) {
+      return message;
+    }
+    return 'NOTIFICATION_PROCESSING_FAILED';
   }
 
   private deriveToken(
@@ -293,16 +405,24 @@ export class NotificationConsumer {
     return `${tokenId}.${signature}`;
   }
 
-  private locale(value: unknown): PublicLocale {
-    return value === 'en' || value === 'es' ? value : 'pt-BR';
+  private derivePrivacyToken(requestId: string, type: 'EXPORT' | 'DELETE'): string {
+    const secret = process.env.PRIVACY_REQUEST_TOKEN_SECRET?.trim();
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
+      throw new Error('PRIVACY_REQUEST_TOKEN_SECRET precisa ter pelo menos 32 caracteres.');
+    }
+    const signature = createHmac('sha256', secret)
+      .update(`privacy-request:${requestId}:${type}`)
+      .digest('base64url');
+    return `${requestId}.${signature}`;
   }
 
-  private layout(
-    title: string,
-    text: string,
-    button: string,
-    url: string,
-  ): string {
+  private locale(value: unknown): PublicLocale {
+    if (value === 'en' || value === 'EN') return 'en';
+    if (value === 'es' || value === 'ES') return 'es';
+    return 'pt-BR';
+  }
+
+  private layout(title: string, text: string, button: string, url: string): string {
     return `
       <div style="margin:0;padding:32px;background:#0b0b0c;color:#f5f5f5;font-family:Arial,sans-serif">
         <div style="max-width:620px;margin:auto;padding:32px;border:1px solid #2d2d31;border-radius:24px;background:#151517">

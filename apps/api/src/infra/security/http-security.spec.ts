@@ -60,6 +60,8 @@ describe('hardening HTTP da API', () => {
     process.env.WEB_URL = 'https://portfolio.example.com';
     process.env.JWT_ACCESS_SECRET = 'a'.repeat(64);
     process.env.JWT_REFRESH_SECRET = 'b'.repeat(64);
+    process.env.PRIVACY_REQUEST_TOKEN_SECRET = 'c'.repeat(64);
+    process.env.PRIVACY_HASH_SECRET = 'd'.repeat(64);
     process.env.METRICS_ENABLED = 'true';
     process.env.METRICS_TOKEN = 'token-de-metricas-forte';
 

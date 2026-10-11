@@ -51,9 +51,7 @@ export class RabbitConnection {
     });
   }
 
-  async consumeNotifications(
-    handler: (message: ConsumeMessage) => Promise<void>,
-  ): Promise<void> {
+  async consumeNotifications(handler: (message: ConsumeMessage) => Promise<void>): Promise<void> {
     const channel = await this.connect();
     await channel.prefetch(5);
     await channel.consume(NOTIFICATION_QUEUE, async (message) => {
@@ -110,11 +108,8 @@ export class RabbitConnection {
       'newsletter.confirmation.requested',
     );
     await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'newsletter.confirmed');
-    await channel.bindQueue(
-      NOTIFICATION_QUEUE,
-      EVENTS_EXCHANGE,
-      'admin.password-reset.requested',
-    );
+    await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'admin.password-reset.requested');
+    await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'privacy.verification.requested');
 
     /**
      * Mantemos os nomes das filas já existentes para não quebrar ambientes
