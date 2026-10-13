@@ -280,6 +280,10 @@ export class UpsertNewsAdminDto {
 
   @IsOptional()
   @IsISO8601()
+  scheduledAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
   publishedAt?: string | null;
 
   @IsArray()

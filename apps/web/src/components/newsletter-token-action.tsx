@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { SuccessModal } from './success-modal';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
 const labels = {
   'pt-BR': {
@@ -61,29 +60,32 @@ export function NewsletterTokenAction({
 
     void (async () => {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/newsletter/${action}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            body: JSON.stringify({ token }),
+        const fragmentToken = new URLSearchParams(window.location.hash.slice(1)).get('token');
+        const effectiveToken = fragmentToken ?? token;
+        if (fragmentToken) {
+          window.history.replaceState(
+            null,
+            '',
+            `${window.location.pathname}${window.location.search}`,
+          );
+        }
+        if (!effectiveToken) throw new Error(copy.error);
+        const response = await fetch(`${API_BASE_URL}/api/newsletter/${action}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
           },
-        );
+          body: JSON.stringify({ token: effectiveToken }),
+        });
 
-        const body = (await response.json().catch(() => null)) as
-          | { message?: string | string[] }
-          | null;
+        const body = (await response.json().catch(() => null)) as {
+          message?: string | string[];
+        } | null;
 
         if (!response.ok) {
           const value = body?.message;
-          throw new Error(
-            Array.isArray(value)
-              ? value.join(' ')
-              : value ?? copy.error,
-          );
+          throw new Error(Array.isArray(value) ? value.join(' ') : (value ?? copy.error));
         }
 
         setMessage(
@@ -96,22 +98,15 @@ export function NewsletterTokenAction({
         setSuccess(true);
       } catch (cause) {
         setError(true);
-        setMessage(
-          cause instanceof Error ? cause.message : copy.error,
-        );
+        setMessage(cause instanceof Error ? cause.message : copy.error);
       }
     })();
   }, [action, copy, token]);
 
-  const successEyebrow =
-    action === 'confirm'
-      ? copy.confirmEyebrow
-      : copy.unsubscribeEyebrow;
+  const successEyebrow = action === 'confirm' ? copy.confirmEyebrow : copy.unsubscribeEyebrow;
 
   const successTitle =
-    action === 'confirm'
-      ? copy.confirmSuccessTitle
-      : copy.unsubscribeSuccessTitle;
+    action === 'confirm' ? copy.confirmSuccessTitle : copy.unsubscribeSuccessTitle;
 
   return (
     <>
@@ -119,9 +114,7 @@ export function NewsletterTokenAction({
         <div className="site-panel p-8 md:p-10">
           <p className="eyebrow">FELIPE.DEV / NEWSLETTER</p>
           <h1 className="display-title mt-4 text-4xl">
-            {action === 'confirm'
-              ? copy.confirmTitle
-              : copy.unsubscribeTitle}
+            {action === 'confirm' ? copy.confirmTitle : copy.unsubscribeTitle}
           </h1>
 
           {!success && !error ? (

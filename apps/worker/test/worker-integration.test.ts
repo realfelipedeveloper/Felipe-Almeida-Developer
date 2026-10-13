@@ -4,7 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { after, before, test } from 'node:test';
-import { PrismaClient, PrivacyRequestStatus, PrivacyRequestType } from '@prisma/client';
+import {
+  NewsletterSubscriberStatus,
+  NewsletterTokenPurpose,
+  Prisma,
+  PrismaClient,
+  PrivacyRequestStatus,
+  PrivacyRequestType,
+  PublicationStatus,
+} from '@prisma/client';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
 import * as amqp from 'amqplib';
@@ -12,6 +20,7 @@ import { EVENTS_EXCHANGE, RabbitConnection } from '../src/infra/rabbitmq.js';
 import { AuditConsumer } from '../src/services/audit-consumer.js';
 import { NotificationConsumer } from '../src/services/notification-consumer.js';
 import { OutboxDispatcher } from '../src/services/outbox-dispatcher.js';
+import { PublicationScheduler } from '../src/services/publication-scheduler.js';
 import { PrismaPrivacyRepository } from '../../api/src/modules/privacy/infrastructure/prisma-privacy.repository.js';
 
 const RETRY_QUEUE = 'fad.events.audit.retry';
@@ -36,6 +45,7 @@ before(
     process.env.RABBITMQ_URL = rabbitContainer.getAmqpUrl();
     process.env.PRIVACY_HASH_SECRET = 'h'.repeat(64);
     process.env.PRIVACY_REQUEST_TOKEN_SECRET = 'r'.repeat(64);
+    process.env.NEWSLETTER_TOKEN_SECRET = 'n'.repeat(64);
     process.env.WEB_URL = 'https://portfolio.example.com';
 
     const prismaCli = join(dirname(require.resolve('prisma/package.json')), 'build', 'index.js');
@@ -430,6 +440,281 @@ test(
     assert.equal(await prisma.privacyRequest.count({ where: { email } }), 0);
   },
 );
+
+test(
+  'edição publicada entrega apenas a inscritos ativos e respeita descadastro antes do envio',
+  { timeout: 15_000 },
+  async () => {
+    const issue = await prisma.newsletterIssue.create({
+      data: {
+        publicationStatus: PublicationStatus.PUBLISHED,
+        publishedAt: new Date(),
+        translations: {
+          create: {
+            locale: 'PT_BR',
+            subject: 'Edição integrada',
+            previewText: 'Prévia segura',
+            bodyHtml: '<p>Conteúdo seguro</p>',
+          },
+        },
+      },
+    });
+    const active = await prisma.newsletterSubscriber.create({
+      data: {
+        email: `ativo-${issue.id}@example.com`,
+        locale: 'PT_BR',
+        status: NewsletterSubscriberStatus.ACTIVE,
+        confirmedAt: new Date(),
+      },
+    });
+    const unsubscribedBeforeDelivery = await prisma.newsletterSubscriber.create({
+      data: {
+        email: `descadastra-${issue.id}@example.com`,
+        locale: 'PT_BR',
+        status: NewsletterSubscriberStatus.ACTIVE,
+        confirmedAt: new Date(),
+      },
+    });
+    await prisma.newsletterSubscriber.create({
+      data: {
+        email: `pendente-${issue.id}@example.com`,
+        locale: 'PT_BR',
+        status: NewsletterSubscriberStatus.PENDING,
+      },
+    });
+    for (const subscriberId of [active.id, unsubscribedBeforeDelivery.id]) {
+      await prisma.newsletterToken.create({
+        data: {
+          subscriberId,
+          purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+    }
+
+    const isolatedRabbit = {
+      ack: () => undefined,
+      retry: async () => undefined,
+      deadLetter: async () => undefined,
+    };
+    const sent: Array<{ to: string; text: string; html: string }> = [];
+    const consumer = new NotificationConsumer(prisma, isolatedRabbit as never);
+    const internals = consumer as unknown as {
+      email: {
+        send: (message: { to: string; text: string; html: string }) => Promise<void>;
+      };
+      handle: (message: amqp.ConsumeMessage) => Promise<void>;
+    };
+    internals.email = {
+      send: async (message) => void sent.push(message),
+    };
+    const toMessage = (
+      eventName: string,
+      eventId: string,
+      payload: Record<string, unknown>,
+      correlationId = randomUUID(),
+    ): amqp.ConsumeMessage => ({
+      content: Buffer.from(
+        JSON.stringify({
+          eventId,
+          eventName,
+          occurredAt: new Date().toISOString(),
+          correlationId,
+          version: 1,
+          payload,
+        }),
+      ),
+      fields: {
+        consumerTag: 'integration',
+        deliveryTag: 1,
+        redelivered: false,
+        exchange: EVENTS_EXCHANGE,
+        routingKey: eventName,
+      },
+      properties: {
+        contentType: 'application/json',
+        contentEncoding: undefined,
+        headers: {},
+        deliveryMode: 2,
+        priority: undefined,
+        correlationId,
+        replyTo: undefined,
+        expiration: undefined,
+        messageId: eventId,
+        timestamp: Date.now(),
+        type: undefined,
+        userId: undefined,
+        appId: undefined,
+        clusterId: undefined,
+      },
+    });
+
+    await internals.handle(
+      toMessage('newsletter.issue.published', randomUUID(), { issueId: issue.id }),
+    );
+    await internals.handle(
+      toMessage('newsletter.issue.published', randomUUID(), { issueId: issue.id }),
+    );
+    const deliveries = await prisma.outboxEvent.findMany({
+      where: { eventName: 'newsletter.issue.delivery.requested', aggregateId: issue.id },
+      orderBy: { occurredAt: 'asc' },
+    });
+    assert.equal(deliveries.length, 2);
+
+    await prisma.newsletterSubscriber.update({
+      where: { id: unsubscribedBeforeDelivery.id },
+      data: { status: NewsletterSubscriberStatus.UNSUBSCRIBED, unsubscribedAt: new Date() },
+    });
+    for (const delivery of deliveries) {
+      await internals.handle(
+        toMessage(
+          delivery.eventName,
+          delivery.id,
+          delivery.payload as Record<string, unknown>,
+          delivery.correlationId,
+        ),
+      );
+    }
+
+    assert.deepEqual(
+      sent.map((message) => message.to),
+      [active.email],
+    );
+    assert.match(sent[0]?.text ?? '', /\/newsletter\/unsubscribe#token=/);
+    assert.doesNotMatch(sent[0]?.text ?? '', /unsubscribe\?token=/);
+    assert.match(sent[0]?.html ?? '', /\/newsletter\/unsubscribe#token=/);
+  },
+);
+
+test('fanout em lote permanece idempotente com base volumosa', { timeout: 15_000 }, async () => {
+  const issue = await prisma.newsletterIssue.create({
+    data: { publicationStatus: PublicationStatus.PUBLISHED, publishedAt: new Date() },
+  });
+  const suffix = issue.id.slice(0, 8);
+  const subscribers = Array.from({ length: 150 }, (_, index) => ({
+    id: randomUUID(),
+    email: `lote-${suffix}-${index}@example.com`,
+    locale: 'PT_BR' as const,
+    status: NewsletterSubscriberStatus.ACTIVE,
+    confirmedAt: new Date(),
+  }));
+  await prisma.newsletterSubscriber.createMany({ data: subscribers });
+  await prisma.newsletterToken.createMany({
+    data: subscribers.map((subscriber) => ({
+      subscriberId: subscriber.id,
+      purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
+      tokenHash: randomUUID(),
+      expiresAt: new Date(Date.now() + 60_000),
+    })),
+  });
+  const eligible = await prisma.newsletterSubscriber.count({
+    where: {
+      status: NewsletterSubscriberStatus.ACTIVE,
+      tokens: {
+        some: {
+          purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      },
+    },
+  });
+  const consumer = new NotificationConsumer(prisma, {} as never);
+  const internals = consumer as unknown as {
+    handleIssuePublished: (
+      tx: Prisma.TransactionClient,
+      payload: Record<string, unknown>,
+      correlationId: string,
+    ) => Promise<void>;
+  };
+
+  await prisma.$transaction((tx) =>
+    internals.handleIssuePublished(tx, { issueId: issue.id }, randomUUID()),
+  );
+  await prisma.$transaction((tx) =>
+    internals.handleIssuePublished(tx, { issueId: issue.id }, randomUUID()),
+  );
+
+  assert.equal(
+    await prisma.outboxEvent.count({
+      where: { eventName: 'newsletter.issue.delivery.requested', aggregateId: issue.id },
+    }),
+    eligible,
+  );
+});
+
+test('agendador emite evento vencido uma única vez sem controlar visibilidade pública', { timeout: 10_000 }, async () => {
+  const scheduledAt = new Date(Date.now() - 60_000);
+  const publishedAt = new Date(Date.now() - 120_000);
+  const article = await prisma.article.create({
+    data: { publicationStatus: PublicationStatus.PUBLISHED, publishedAt, scheduledAt },
+  });
+  const issue = await prisma.newsletterIssue.create({
+    data: { publicationStatus: PublicationStatus.PUBLISHED, publishedAt, scheduledAt },
+  });
+  const scheduler = new PublicationScheduler(prisma) as unknown as { tick: () => Promise<void> };
+
+  await scheduler.tick();
+  await scheduler.tick();
+
+  const [storedArticle, storedIssue, articleEvents, issueEvents] = await Promise.all([
+    prisma.article.findUniqueOrThrow({ where: { id: article.id } }),
+    prisma.newsletterIssue.findUniqueOrThrow({ where: { id: issue.id } }),
+    prisma.outboxEvent.count({
+      where: { eventName: 'article.published', aggregateId: article.id },
+    }),
+    prisma.outboxEvent.count({
+      where: { eventName: 'newsletter.issue.published', aggregateId: issue.id },
+    }),
+  ]);
+
+  assert.equal(storedArticle.publicationStatus, PublicationStatus.PUBLISHED);
+  assert.ok(storedArticle.publishedEventAt);
+  assert.equal(storedIssue.publicationStatus, PublicationStatus.PUBLISHED);
+  assert.ok(storedIssue.publishedEventAt);
+  assert.equal(articleEvents, 1);
+  assert.equal(issueEvents, 1);
+
+  await prisma.article.update({
+    where: { id: article.id },
+    data: { publicationStatus: PublicationStatus.ARCHIVED },
+  });
+  await prisma.newsletterIssue.update({
+    where: { id: issue.id },
+    data: { publicationStatus: PublicationStatus.ARCHIVED },
+  });
+  await prisma.article.update({
+    where: { id: article.id },
+    data: { publicationStatus: PublicationStatus.DRAFT, scheduledAt },
+  });
+  await prisma.newsletterIssue.update({
+    where: { id: issue.id },
+    data: { publicationStatus: PublicationStatus.DRAFT, scheduledAt },
+  });
+  await scheduler.tick();
+
+  assert.equal(
+    (await prisma.article.findUniqueOrThrow({ where: { id: article.id } })).publicationStatus,
+    PublicationStatus.DRAFT,
+  );
+  assert.equal(
+    (await prisma.newsletterIssue.findUniqueOrThrow({ where: { id: issue.id } })).publicationStatus,
+    PublicationStatus.DRAFT,
+  );
+  assert.equal(
+    await prisma.outboxEvent.count({
+      where: { eventName: 'article.published', aggregateId: article.id },
+    }),
+    1,
+  );
+  assert.equal(
+    await prisma.outboxEvent.count({
+      where: { eventName: 'newsletter.issue.published', aggregateId: issue.id },
+    }),
+    1,
+  );
+});
 
 async function waitForMessage(
   channel: Awaited<ReturnType<RabbitConnection['connect']>>,

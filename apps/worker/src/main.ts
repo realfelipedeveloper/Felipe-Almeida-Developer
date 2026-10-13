@@ -7,6 +7,7 @@ import { AuditConsumer } from './services/audit-consumer.js';
 import { NotificationConsumer } from './services/notification-consumer.js';
 import { OutboxDispatcher } from './services/outbox-dispatcher.js';
 import { PrivacyRetentionService } from './services/privacy-retention.js';
+import { PublicationScheduler } from './services/publication-scheduler.js';
 
 const prisma = new PrismaClient();
 let shuttingDown = false;
@@ -21,6 +22,7 @@ const outbox = new OutboxDispatcher(prisma, rabbit);
 const auditConsumer = new AuditConsumer(prisma, rabbit);
 const notificationConsumer = new NotificationConsumer(prisma, rabbit);
 const privacyRetention = new PrivacyRetentionService(prisma);
+const publicationScheduler = new PublicationScheduler(prisma);
 const managementServer = new ManagementServer(async () => {
   if (!rabbit.isConnected()) return false;
   await prisma.$queryRaw`SELECT 1`;
@@ -36,6 +38,7 @@ async function bootstrap(): Promise<void> {
   await managementServer.start();
   outbox.start();
   privacyRetention.start();
+  publicationScheduler.start();
 
   logger.info(
     { categoria: 'app' },
@@ -49,6 +52,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   logger.info({ categoria: 'app', signal }, 'Encerrando worker');
   outbox.stop();
   privacyRetention.stop();
+  publicationScheduler.stop();
   await managementServer.stop();
   await rabbit.close();
   await prisma.$disconnect();

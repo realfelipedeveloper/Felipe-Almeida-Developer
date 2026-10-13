@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
 
 import { slugify } from '@/lib/content';
+import { currentDateTimeLocal, localDateTimeToIso, toDateTimeLocal } from '@/lib/date-time-local';
 
 import { AdminFeedbackModal } from './admin-modal';
 import { AdminMediaMultiPicker, AdminMediaPicker } from './admin-media-picker';
@@ -107,18 +108,7 @@ function blankTranslation(locale: LocaleKey): TranslationState {
 function dateInput(value?: string | null, dateOnly = false) {
   if (!value) return '';
 
-  return dateOnly ? value.slice(0, 10) : value.slice(0, 16);
-}
-
-function currentDateTimeLocal() {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function toIso(value: string) {
-  return value ? new Date(value).toISOString() : null;
+  return dateOnly ? value.slice(0, 10) : toDateTimeLocal(value);
 }
 
 export function AdminContentEditor({
@@ -270,7 +260,7 @@ export function AdminContentEditor({
           demoUrl: String(form.get('demoUrl') ?? '') || null,
           coverMediaId,
           sortOrder: Number(form.get('sortOrder') ?? 0),
-          publishedAt: toIso(String(form.get('publishedAt') ?? '')),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
           technologyIds,
           tagIds,
           mediaIds,
@@ -294,8 +284,8 @@ export function AdminContentEditor({
             ? Number(form.get('readingTimeMinutes'))
             : null,
 
-          scheduledAt: toIso(String(form.get('scheduledAt') ?? '')),
-          publishedAt: toIso(String(form.get('publishedAt') ?? '')),
+          scheduledAt: localDateTimeToIso(String(form.get('scheduledAt') ?? '')),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
 
           tagIds,
           translations: activeTranslations.map(
@@ -317,7 +307,8 @@ export function AdminContentEditor({
         body = {
           publicationStatus: String(form.get('publicationStatus')),
           coverMediaId,
-          publishedAt: toIso(String(form.get('publishedAt') ?? '')),
+          scheduledAt: localDateTimeToIso(String(form.get('scheduledAt') ?? '')),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
           tagIds,
           translations: activeTranslations.map(
             ({
@@ -471,7 +462,7 @@ export function AdminContentEditor({
               />
             ) : null}
 
-            {kind === 'articles' ? (
+            {kind === 'articles' || kind === 'news' ? (
               <Input
                 name="scheduledAt"
                 label="Agendamento"
@@ -484,7 +475,7 @@ export function AdminContentEditor({
               name="publishedAt"
               label="Publicação"
               type="datetime-local"
-              defaultValue={dateInput(existing?.publishedAt) || currentDateTimeLocal()}
+              defaultValue={dateInput(existing?.publishedAt) || (!id ? currentDateTimeLocal() : '')}
               required={publicationStatus === 'PUBLISHED'}
             />
 

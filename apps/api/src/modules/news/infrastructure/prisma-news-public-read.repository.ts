@@ -22,9 +22,11 @@ export class PrismaNewsPublicReadRepository implements NewsPublicReadRepository 
     filters: NewsListFilters,
   ): Promise<{ data: PublicNewsListItem[]; total: number }> {
     const locale = toPrismaLocale(filters.locale);
+    const now = new Date();
     const where: Prisma.NewsWhereInput = {
       publicationStatus: PublicationStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      publishedAt: { lte: now },
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
       translations: { some: { locale } },
       ...(filters.tag
         ? { tags: { some: { tag: { translations: { some: { locale, slug: filters.tag } } } } } }
@@ -54,6 +56,7 @@ export class PrismaNewsPublicReadRepository implements NewsPublicReadRepository 
       where: {
         publicationStatus: PublicationStatus.PUBLISHED,
         publishedAt: { lte: new Date() },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
         translations: { some: { locale, slug } },
       },
       include,

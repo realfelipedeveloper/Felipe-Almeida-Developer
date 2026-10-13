@@ -1,16 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  adminFetch,
-  AdminApiError,
-} from '@/lib/admin/admin-api';
+import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
 import { AdminContentEditor } from './admin-content-editor';
-import {
-  AdminConfirmModal,
-  AdminFeedbackModal,
-  AdminModal,
-} from './admin-modal';
+import { AdminConfirmModal, AdminFeedbackModal, AdminModal } from './admin-modal';
 
 interface TranslationRow {
   locale: string;
@@ -21,6 +14,7 @@ interface TranslationRow {
 interface ContentRow {
   id: string;
   publicationStatus: string;
+  scheduledAt?: string | null;
   translations: TranslationRow[];
   createdAt: string;
 }
@@ -54,19 +48,12 @@ export function AdminContentList({
     setLoading(true);
 
     try {
-      setItems(
-        await adminFetch<ContentRow[]>(
-          `/api/admin/content/${kind}`,
-        ),
-      );
+      setItems(await adminFetch<ContentRow[]>(`/api/admin/content/${kind}`));
     } catch (cause) {
       setFeedback({
         variant: 'error',
         title: 'Falha ao carregar conteúdo.',
-        message:
-          cause instanceof Error
-            ? cause.message
-            : 'Falha ao carregar conteúdo.',
+        message: cause instanceof Error ? cause.message : 'Falha ao carregar conteúdo.',
       });
     } finally {
       setLoading(false);
@@ -83,10 +70,7 @@ export function AdminContentList({
     setDeleting(true);
 
     try {
-      await adminFetch(
-        `/api/admin/content/${kind}/${pendingDelete.id}`,
-        { method: 'DELETE' },
-      );
+      await adminFetch(`/api/admin/content/${kind}/${pendingDelete.id}`, { method: 'DELETE' });
 
       const removedName = pendingDelete.name;
       setPendingDelete(null);
@@ -101,10 +85,7 @@ export function AdminContentList({
       setFeedback({
         variant: 'error',
         title: `Não foi possível excluir ${singular.toLowerCase()}.`,
-        message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Falha ao excluir conteúdo.',
+        message: cause instanceof AdminApiError ? cause.message : 'Falha ao excluir conteúdo.',
       });
     } finally {
       setDeleting(false);
@@ -116,9 +97,7 @@ export function AdminContentList({
       <div>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black tracking-tight">
-              {title}
-            </h1>
+            <h1 className="text-4xl font-black tracking-tight">{title}</h1>
             <p className="mt-2 text-slate-400">
               Visualize, crie, edite, publique e remova conteúdo.
             </p>
@@ -134,19 +113,21 @@ export function AdminContentList({
         </div>
 
         {loading ? (
-          <p className="mt-8 text-slate-400">
-            Carregando…
-          </p>
+          <p className="mt-8 text-slate-400">Carregando…</p>
         ) : (
           <div className="mt-8 overflow-hidden rounded-2xl border border-slate-800">
             <div className="divide-y divide-slate-800">
               {items.length ? (
                 items.map((item) => {
                   const pt =
-                    item.translations.find(
-                      (translation) =>
-                        translation.locale === 'PT_BR',
-                    ) ?? item.translations[0];
+                    item.translations.find((translation) => translation.locale === 'PT_BR') ??
+                    item.translations[0];
+                  const displayStatus =
+                    item.publicationStatus === 'PUBLISHED' &&
+                    item.scheduledAt &&
+                    new Date(item.scheduledAt).getTime() > Date.now()
+                      ? 'AGENDADO'
+                      : item.publicationStatus;
 
                   return (
                     <div
@@ -154,21 +135,16 @@ export function AdminContentList({
                       className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 px-5 py-4"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-bold">
-                          {pt?.title ?? 'Sem título'}
-                        </p>
+                        <p className="truncate font-bold">{pt?.title ?? 'Sem título'}</p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {item.publicationStatus} ·{' '}
-                          {pt?.slug ?? '-'}
+                          {displayStatus} · {pt?.slug ?? '-'}
                         </p>
                       </div>
 
                       <div className="flex flex-wrap gap-3 text-sm">
                         <button
                           type="button"
-                          onClick={() =>
-                            setEditor({ id: item.id })
-                          }
+                          onClick={() => setEditor({ id: item.id })}
                           className="text-slate-200 hover:text-white"
                         >
                           Visualizar / editar
@@ -179,8 +155,7 @@ export function AdminContentList({
                           onClick={() =>
                             setPendingDelete({
                               id: item.id,
-                              name:
-                                pt?.title ?? singular,
+                              name: pt?.title ?? singular,
                             })
                           }
                           className="text-red-300"

@@ -123,6 +123,10 @@ export class NotificationConsumer {
             await this.handleConfirmation(tx, event.payload);
           } else if (event.eventName === 'newsletter.confirmed') {
             await this.handleWelcome(tx, event.payload);
+          } else if (event.eventName === 'newsletter.issue.published') {
+            await this.handleIssuePublished(tx, event.payload, event.correlationId);
+          } else if (event.eventName === 'newsletter.issue.delivery.requested') {
+            await this.handleIssueDelivery(tx, event.payload);
           } else if (event.eventName === 'admin.password-reset.requested') {
             await this.handlePasswordReset(event.payload);
           } else if (event.eventName === 'privacy.verification.requested') {
@@ -229,7 +233,7 @@ export class NotificationConsumer {
       NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
     );
     const base = process.env.WEB_URL ?? 'http://localhost:3000';
-    const url = `${base}/${locale}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    const url = `${base}/${locale}/newsletter/confirm#token=${encodeURIComponent(token)}`;
 
     await this.email.send({
       to: fresh.email,
@@ -256,13 +260,149 @@ export class NotificationConsumer {
     const texts = copy[locale];
     const token = this.deriveToken(tokenId, subscriberId, NewsletterTokenPurpose.UNSUBSCRIBE);
     const base = process.env.WEB_URL ?? 'http://localhost:3000';
-    const url = `${base}/${locale}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+    const url = `${base}/${locale}/newsletter/unsubscribe#token=${encodeURIComponent(token)}`;
 
     await this.email.send({
       to: fresh.email,
       subject: texts.welcomeSubject,
       text: `${texts.welcomeText}\n\n${url}`,
       html: this.layout(texts.welcomeTitle, texts.welcomeText, texts.unsubscribe, url),
+    });
+  }
+
+  private async handleIssuePublished(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+    correlationId: string,
+  ): Promise<void> {
+    const issueId = String(payload.issueId ?? '');
+    const now = new Date();
+    const issue = issueId
+      ? await tx.newsletterIssue.findFirst({
+          where: {
+            id: issueId,
+            publicationStatus: 'PUBLISHED',
+            publishedAt: { lte: now },
+            OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+          },
+          select: { id: true },
+        })
+      : null;
+    if (!issue) return;
+
+    await tx.$executeRaw(Prisma.sql`
+      WITH recipients AS (
+        SELECT
+          subscriber.id AS subscriber_id,
+          md5('newsletter.issue.delivery.requested:' || ${issue.id} || ':' || subscriber.id::text) AS digest
+        FROM newsletter_subscribers AS subscriber
+        WHERE subscriber.status = 'ACTIVE'::"NewsletterSubscriberStatus"
+          AND EXISTS (
+            SELECT 1
+            FROM newsletter_tokens AS token
+            WHERE token.subscriber_id = subscriber.id
+              AND token.purpose = 'UNSUBSCRIBE'::"NewsletterTokenPurpose"
+              AND token.used_at IS NULL
+              AND token.expires_at > NOW()
+          )
+      )
+      INSERT INTO outbox_events (
+        id, event_name, version, aggregate_type, aggregate_id, correlation_id,
+        payload, occurred_at, available_at, attempts
+      )
+      SELECT
+        (
+          substr(digest, 1, 8) || '-' || substr(digest, 9, 4) || '-5' ||
+          substr(digest, 14, 3) || '-8' || substr(digest, 18, 3) || '-' ||
+          substr(digest, 21, 12)
+        )::uuid,
+        'newsletter.issue.delivery.requested',
+        1,
+        'NewsletterIssue',
+        ${issue.id},
+        ${correlationId}::uuid,
+        jsonb_build_object('issueId', ${issue.id}, 'subscriberId', subscriber_id::text),
+        NOW(),
+        NOW(),
+        0
+      FROM recipients
+      ON CONFLICT (id) DO NOTHING
+    `);
+  }
+
+  private async handleIssueDelivery(
+    tx: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const issueId = String(payload.issueId ?? '');
+    const subscriberId = String(payload.subscriberId ?? '');
+    if (!issueId || !subscriberId) return;
+
+    const subscriber = await tx.newsletterSubscriber.findUnique({
+      where: { id: subscriberId },
+      select: { email: true, status: true },
+    });
+    if (!subscriber || subscriber.status !== 'ACTIVE') return;
+
+    await this.lockSubject(tx, subscriber.email);
+    const now = new Date();
+    const [fresh, issue] = await Promise.all([
+      tx.newsletterSubscriber.findUnique({
+        where: { id: subscriberId },
+        include: {
+          tokens: {
+            where: {
+              purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
+              usedAt: null,
+              expiresAt: { gt: now },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+      tx.newsletterIssue.findFirst({
+        where: {
+          id: issueId,
+          publicationStatus: 'PUBLISHED',
+          publishedAt: { lte: now },
+          OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+        },
+        include: { translations: true },
+      }),
+    ]);
+    if (
+      !fresh ||
+      fresh.email !== subscriber.email ||
+      fresh.status !== 'ACTIVE' ||
+      !fresh.tokens[0] ||
+      !issue
+    ) {
+      return;
+    }
+
+    const translation =
+      issue.translations.find((item) => item.locale === fresh.locale) ??
+      issue.translations.find((item) => item.locale === 'PT_BR') ??
+      issue.translations[0];
+    if (!translation) return;
+
+    const locale = this.locale(fresh.locale);
+    const token = this.deriveToken(
+      fresh.tokens[0].id,
+      fresh.id,
+      NewsletterTokenPurpose.UNSUBSCRIBE,
+    );
+    const base = process.env.WEB_URL ?? 'http://localhost:3000';
+    const unsubscribeUrl = `${base}/${locale}/newsletter/unsubscribe#token=${encodeURIComponent(token)}`;
+    const unsubscribeLabel = copy[locale].unsubscribe;
+    const preview = translation.previewText ? `${translation.previewText}\n\n` : '';
+
+    await this.email.send({
+      to: fresh.email,
+      subject: translation.subject,
+      text: `${preview}${this.plainText(translation.bodyHtml)}\n\n${unsubscribeLabel}: ${unsubscribeUrl}`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#171717">${translation.bodyHtml}<hr><p><a href="${this.escape(unsubscribeUrl)}">${this.escape(unsubscribeLabel)}</a></p></div>`,
     });
   }
 
@@ -372,6 +512,19 @@ export class NotificationConsumer {
       return message;
     }
     return 'NOTIFICATION_PROCESSING_FAILED';
+  }
+
+  private plainText(value: string): string {
+    return value
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
   }
 
   private deriveToken(

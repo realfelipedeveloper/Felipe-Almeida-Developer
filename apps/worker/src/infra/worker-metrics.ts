@@ -7,6 +7,9 @@ export type WorkerCounter =
   | 'notification_failed'
   | 'outbox_published'
   | 'outbox_failed'
+  | 'scheduled_article_published'
+  | 'scheduled_newsletter_issue_published'
+  | 'publication_scheduler_failed'
   | 'retry_published'
   | 'dead_letter_published';
 
@@ -19,6 +22,9 @@ const metricNames: Record<WorkerCounter, string> = {
   notification_failed: 'fad_worker_notification_failed_total',
   outbox_published: 'fad_worker_outbox_published_total',
   outbox_failed: 'fad_worker_outbox_failed_total',
+  scheduled_article_published: 'fad_worker_scheduled_article_published_total',
+  scheduled_newsletter_issue_published: 'fad_worker_scheduled_newsletter_issue_published_total',
+  publication_scheduler_failed: 'fad_worker_publication_scheduler_failed_total',
   retry_published: 'fad_worker_retry_published_total',
   dead_letter_published: 'fad_worker_dead_letter_published_total',
 };

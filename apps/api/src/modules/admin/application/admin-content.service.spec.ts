@@ -55,10 +55,30 @@ describe('AdminContentService - HTML rico', () => {
 
   function setup(sanitizedHtml: string) {
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ id: 'article-id', publicationStatus: 'DRAFT', publishedAt: null }]),
       article: {
-        create: jest.fn().mockResolvedValue({ id: 'article-id' }),
-        update: jest.fn().mockResolvedValue({ id: 'article-id' }),
+        create: jest.fn().mockImplementation(({ data }) =>
+          Promise.resolve({
+            id: 'article-id',
+            publicationStatus: data.publicationStatus,
+            scheduledAt: data.scheduledAt,
+            publishedAt: data.publishedAt,
+            publishedEventAt: null,
+          }),
+        ),
+        update: jest.fn().mockImplementation(({ data }) =>
+          Promise.resolve({
+            id: 'article-id',
+            publicationStatus: data.publicationStatus ?? 'PUBLISHED',
+            scheduledAt: data.scheduledAt ?? null,
+            publishedAt: data.publishedAt ?? new Date('2026-10-01T12:00:00Z'),
+            publishedEventAt:
+              currentPublishedEventAt(data) ??
+              (data.publishedEventAt ? new Date('2026-10-01T12:00:00Z') : null),
+          }),
+        ),
       },
       articleTranslation: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       articleTag: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -68,6 +88,7 @@ describe('AdminContentService - HTML rico', () => {
       },
       newsTranslation: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       newsTag: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      outboxEvent: { create: jest.fn().mockResolvedValue({}) },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
@@ -106,6 +127,14 @@ describe('AdminContentService - HTML rico', () => {
         translations: { create: [expect.objectContaining({ bodyHtml: '<p>Seguro</p>' })] },
       }),
     });
+    expect(tx.outboxEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventName: 'article.published',
+        aggregateType: 'Article',
+        aggregateId: 'article-id',
+        payload: { articleId: 'article-id' },
+      }),
+    });
   });
 
   it('sanitiza o corpo do artigo antes de atualizar', async () => {
@@ -119,6 +148,35 @@ describe('AdminContentService - HTML rico', () => {
         translations: { create: [expect.objectContaining({ bodyHtml: '<p>Atualizado</p>' })] },
       }),
     });
+  });
+
+  it('preserva publishedAt editorial em rascunho e emite evento ao autorizar publicação', async () => {
+    const { service, tx } = setup('<p>Seguro</p>');
+    const draft = articleBody('<p>Seguro</p>');
+    draft.publicationStatus = 'DRAFT';
+    draft.publishedAt = '2026-10-01T12:00:00.000Z';
+
+    await service.createArticle(draft, admin);
+    expect(tx.article.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        publicationStatus: 'DRAFT',
+        publishedAt: new Date('2026-10-01T12:00:00.000Z'),
+      }),
+    });
+    expect(tx.outboxEvent.create).not.toHaveBeenCalled();
+
+    const published = articleBody('<p>Seguro</p>');
+    await service.updateArticle('article-id', published, admin);
+    expect(tx.outboxEvent.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('retém evento quando PUBLISHED possui agendamento futuro', async () => {
+    const { service, tx } = setup('<p>Seguro</p>');
+    const body = articleBody('<p>Seguro</p>');
+    body.scheduledAt = '2999-01-01T00:00:00.000Z';
+
+    await service.createArticle(body, admin);
+    expect(tx.outboxEvent.create).not.toHaveBeenCalled();
   });
 
   it('sanitiza o conteúdo da notícia antes de criar', async () => {
@@ -174,3 +232,9 @@ describe('AdminContentService - HTML rico', () => {
     );
   });
 });
+
+function currentPublishedEventAt(data: Record<string, unknown>): Date | null {
+  return data.publicationStatus === undefined
+    ? new Date('2026-10-01T12:00:00Z')
+    : null;
+}

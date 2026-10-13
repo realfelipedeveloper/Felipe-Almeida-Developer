@@ -77,12 +77,20 @@ export class PrismaMediaRepository implements MediaRepository {
           { projectMedia: { some: { project: { publicationStatus: 'PUBLISHED' } } } },
           {
             articleCovers: {
-              some: { publicationStatus: 'PUBLISHED', publishedAt: { lte: new Date() } },
+              some: {
+                publicationStatus: 'PUBLISHED',
+                publishedAt: { lte: new Date() },
+                OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+              },
             },
           },
           {
             newsCovers: {
-              some: { publicationStatus: 'PUBLISHED', publishedAt: { lte: new Date() } },
+              some: {
+                publicationStatus: 'PUBLISHED',
+                publishedAt: { lte: new Date() },
+                OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+              },
             },
           },
         ],

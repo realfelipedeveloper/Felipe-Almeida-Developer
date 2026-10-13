@@ -11,6 +11,7 @@ import { validateWorkerSecurityConfig } from '../src/infra/security-config.js';
 import { WorkerMetrics } from '../src/infra/worker-metrics.js';
 import { EmailSender } from '../src/services/email-sender.js';
 import { NotificationConsumer } from '../src/services/notification-consumer.js';
+import { PublicationScheduler } from '../src/services/publication-scheduler.js';
 import { PrivacyRetentionService } from '../src/services/privacy-retention.js';
 import { OutboxDispatcher } from '../src/services/outbox-dispatcher.js';
 import { WhatsAppSender } from '../src/services/whatsapp-sender.js';
@@ -713,6 +714,35 @@ test('retenção de privacidade executa limpeza idempotente em uma transação',
   assert.ok(statements.some((sql) => sql.includes("status = 'EXPIRED'")));
   assert.ok(statements.some((sql) => sql.includes('13 months')));
   assert.ok(statements.some((sql) => sql.includes('privacy_erasure_tombstones')));
+});
+
+test('agendador publica artigos e edições vencidas com evento transacional', async () => {
+  const createdEvents: Array<{ data: { eventName: string; aggregateId: string } }> = [];
+  const tx = {
+    $queryRaw: async () => [{ id: 'scheduled-id' }],
+    article: { update: async () => ({}) },
+    newsletterIssue: { update: async () => ({}) },
+    outboxEvent: {
+      create: async (input: { data: { eventName: string; aggregateId: string } }) => {
+        createdEvents.push(input);
+        return {};
+      },
+    },
+  };
+  const prisma = {
+    $transaction: async (callback: (client: typeof tx) => Promise<void>) => callback(tx),
+  };
+  const scheduler = new PublicationScheduler(prisma as never, new WorkerMetrics()) as unknown as {
+    tick: () => Promise<void>;
+  };
+
+  await scheduler.tick();
+
+  assert.deepEqual(
+    createdEvents.map((event) => event.data.eventName),
+    ['article.published', 'newsletter.issue.published'],
+  );
+  assert.ok(createdEvents.every((event) => event.data.aggregateId === 'scheduled-id'));
 });
 
 test('worker exige segredo dedicado e WEB_URL HTTPS em produção', () => {

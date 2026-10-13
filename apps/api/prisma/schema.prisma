@@ -281,6 +281,7 @@ model Article {
   readingTimeMinutes Int?             @map("reading_time_minutes")
   scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
+  publishedEventAt  DateTime?         @map("published_event_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -291,6 +292,7 @@ model Article {
 
   @@index([publicationStatus, publishedAt])
   @@index([scheduledAt])
+  @@index([publicationStatus, publishedEventAt, scheduledAt, publishedAt])
   @@map("articles")
 }
 
@@ -331,6 +333,7 @@ model News {
   id                String            @id @default(uuid()) @db.Uuid
   publicationStatus PublicationStatus @default(DRAFT) @map("publication_status")
   coverMediaId      String?           @map("cover_media_id") @db.Uuid
+  scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -340,6 +343,8 @@ model News {
   tags          NewsTag[]
 
   @@index([publicationStatus, publishedAt])
+  @@index([scheduledAt])
+  @@index([publicationStatus, scheduledAt, publishedAt])
   @@map("news")
 }
 
@@ -434,12 +439,15 @@ model NewsletterIssue {
   publicationStatus PublicationStatus @default(DRAFT) @map("publication_status")
   scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
+  publishedEventAt  DateTime?         @map("published_event_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   translations NewsletterIssueTranslation[]
 
   @@index([publicationStatus, publishedAt])
+  @@index([publicationStatus, publishedEventAt, scheduledAt, publishedAt])
+  @@index([publicationStatus, scheduledAt, publishedAt])
   @@map("newsletter_issues")
 }
 

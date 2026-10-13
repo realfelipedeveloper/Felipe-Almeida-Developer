@@ -26,6 +26,7 @@ export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepos
     const where: Prisma.ArticleWhereInput = {
       publicationStatus: PublicationStatus.PUBLISHED,
       publishedAt: { lte: now },
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
       translations: { some: { locale } },
       ...(filters.tag
         ? { tags: { some: { tag: { translations: { some: { locale, slug: filters.tag } } } } } }
@@ -55,6 +56,7 @@ export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepos
       where: {
         publicationStatus: PublicationStatus.PUBLISHED,
         publishedAt: { lte: new Date() },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
         translations: { some: { locale, slug } },
       },
       include,

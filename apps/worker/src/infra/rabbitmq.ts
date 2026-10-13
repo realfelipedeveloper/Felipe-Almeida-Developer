@@ -249,6 +249,12 @@ export class RabbitConnection {
       'newsletter.confirmation.requested',
     );
     await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'newsletter.confirmed');
+    await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'newsletter.issue.published');
+    await channel.bindQueue(
+      NOTIFICATION_QUEUE,
+      EVENTS_EXCHANGE,
+      'newsletter.issue.delivery.requested',
+    );
     await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'admin.password-reset.requested');
     await channel.bindQueue(NOTIFICATION_QUEUE, EVENTS_EXCHANGE, 'privacy.verification.requested');
 

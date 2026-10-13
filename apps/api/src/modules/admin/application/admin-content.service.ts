@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, type Locale } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { CacheService } from '../../../infra/redis/cache.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import {
@@ -206,6 +207,9 @@ export class AdminContentService {
           { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
         ]);
         const created = await tx.article.create({ data: this.articleCreateData(body) });
+        if (this.isPublicationDue(created)) {
+          await this.publishArticleEvent(tx, created.id);
+        }
         await this.audit(tx, admin, 'ARTICLE_CREATED', 'Article', created.id);
         return created;
       });
@@ -217,15 +221,29 @@ export class AdminContentService {
   }
 
   async updateArticle(id: string, body: UpsertArticleAdminDto, admin: AuthenticatedAdmin) {
-    await this.ensureExists('article', id);
     try {
       await this.prisma.$transaction(async (tx) => {
+        const [current] = await tx.$queryRaw<Array<{ id: string }>>(
+          Prisma.sql`
+            SELECT id
+            FROM articles
+            WHERE id = ${id}::uuid
+            FOR UPDATE
+          `,
+        );
+        if (!current) throw new NotFoundException('Conteúdo não encontrado.');
         await this.lockMediaReferences(tx, [
           { id: body.coverMediaId, kind: 'IMAGE', fieldLabel: 'capa' },
         ]);
         await tx.articleTranslation.deleteMany({ where: { articleId: id } });
         await tx.articleTag.deleteMany({ where: { articleId: id } });
-        await tx.article.update({ where: { id }, data: this.articleUpdateData(body) });
+        const updated = await tx.article.update({
+          where: { id },
+          data: this.articleUpdateData(body),
+        });
+        if (!updated.publishedEventAt && this.isPublicationDue(updated)) {
+          await this.publishArticleEvent(tx, id);
+        }
         await this.audit(tx, admin, 'ARTICLE_UPDATED', 'Article', id);
       });
       await this.cache.invalidateByPrefix('public:articles:');
@@ -398,6 +416,7 @@ export class AdminContentService {
     return {
       publicationStatus: body.publicationStatus,
       coverMediaId: body.coverMediaId ?? null,
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       publishedAt: this.resolvePublishedAt(body.publicationStatus, body.publishedAt),
       translations: {
         create: body.translations.map((item) => ({
@@ -425,6 +444,20 @@ export class AdminContentService {
   private resolvePublishedAt(status: string, publishedAt?: string | null): Date | null {
     if (publishedAt) return new Date(publishedAt);
     return status === 'PUBLISHED' ? new Date() : null;
+  }
+
+  private isPublicationDue(input: {
+    publicationStatus: string;
+    publishedAt: Date | null;
+    scheduledAt: Date | null;
+  }): boolean {
+    const now = Date.now();
+    return (
+      input.publicationStatus === 'PUBLISHED' &&
+      input.publishedAt !== null &&
+      input.publishedAt.getTime() <= now &&
+      (input.scheduledAt === null || input.scheduledAt.getTime() <= now)
+    );
   }
 
   private sanitizeRequiredRichText(value: string, resourceLabel: string): string {
@@ -492,6 +525,23 @@ export class AdminContentService {
         resourceId,
       },
     });
+  }
+
+  private async publishArticleEvent(
+    tx: Prisma.TransactionClient,
+    articleId: string,
+  ): Promise<void> {
+    await tx.outboxEvent.create({
+      data: {
+        id: randomUUID(),
+        eventName: 'article.published',
+        aggregateType: 'Article',
+        aggregateId: articleId,
+        correlationId: randomUUID(),
+        payload: { articleId } satisfies Prisma.JsonObject,
+      },
+    });
+    await tx.article.update({ where: { id: articleId }, data: { publishedEventAt: new Date() } });
   }
 
   private handleUnique(error: unknown, message: string): never {

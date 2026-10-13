@@ -13,6 +13,7 @@ export interface NewsItem {
   id: string;
   publicationStatus: PublicationStatus;
   coverMediaId: string | null;
+  scheduledAt: Date | null;
   publishedAt: Date | null;
   translations: NewsTranslation[];
   tagIds: string[];
