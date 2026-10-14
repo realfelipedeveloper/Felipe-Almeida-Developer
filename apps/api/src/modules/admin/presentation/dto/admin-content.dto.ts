@@ -42,6 +42,32 @@ export class ProfileTranslationAdminDto {
   @IsString()
   bio!: string;
 
+  @IsString()
+  @MaxLength(80)
+  aboutEyebrow!: string;
+
+  @IsString()
+  @MaxLength(220)
+  aboutTitle!: string;
+
+  @IsString()
+  aboutIntro!: string;
+
+  @IsString()
+  @MaxLength(180)
+  aboutPrinciplesTitle!: string;
+
+  @IsString()
+  @MaxLength(180)
+  aboutGalleryTitle!: string;
+
+  @IsString()
+  aboutGalleryText!: string;
+
+  @IsString()
+  @MaxLength(80)
+  aboutResumeLabel!: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(180)
@@ -77,6 +103,33 @@ export class SocialLinkAdminDto {
   visible?: boolean;
 }
 
+export class ProfilePrincipleTranslationAdminDto {
+  @IsIn(LOCALES)
+  locale!: (typeof LOCALES)[number];
+
+  @IsString()
+  @MaxLength(180)
+  title!: string;
+
+  @IsString()
+  text!: string;
+}
+
+export class ProfilePrincipleAdminDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sortOrder?: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ArrayUnique((item: ProfilePrincipleTranslationAdminDto) => item.locale)
+  @ValidateNested({ each: true })
+  @Type(() => ProfilePrincipleTranslationAdminDto)
+  translations!: ProfilePrincipleTranslationAdminDto[];
+}
+
 export class UpdateProfileAdminDto {
   @IsOptional()
   @IsEmail()
@@ -103,6 +156,7 @@ export class UpdateProfileAdminDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
+  @ArrayUnique((item: ProfileTranslationAdminDto) => item.locale)
   @ValidateNested({ each: true })
   @Type(() => ProfileTranslationAdminDto)
   translations!: ProfileTranslationAdminDto[];
@@ -112,6 +166,18 @@ export class UpdateProfileAdminDto {
   @ValidateNested({ each: true })
   @Type(() => SocialLinkAdminDto)
   socialLinks!: SocialLinkAdminDto[];
+
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => ProfilePrincipleAdminDto)
+  principles!: ProfilePrincipleAdminDto[];
+
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  galleryMediaIds!: string[];
 }
 
 class SeoTranslationDto {

@@ -4,6 +4,7 @@ import type { CacheService } from '../../../infra/redis/cache.service';
 import type { RichTextSanitizer } from '../../../shared/application/rich-text-sanitizer';
 import type { AuthenticatedAdmin } from '../../auth/application/auth.types';
 import type {
+  UpdateProfileAdminDto,
   UpsertArticleAdminDto,
   UpsertNewsAdminDto,
 } from '../presentation/dto/admin-content.dto';
@@ -234,7 +235,112 @@ describe('AdminContentService - HTML rico', () => {
 });
 
 function currentPublishedEventAt(data: Record<string, unknown>): Date | null {
-  return data.publicationStatus === undefined
-    ? new Date('2026-10-01T12:00:00Z')
-    : null;
+  return data.publicationStatus === undefined ? new Date('2026-10-01T12:00:00Z') : null;
 }
+
+describe('AdminContentService - página Sobre editável', () => {
+  const admin = {
+    id: '9e7b7a71-dfc8-4f04-b112-967b50ea81e4',
+    email: 'admin@example.com',
+    role: 'ADMIN',
+  } as AuthenticatedAdmin;
+  const galleryMediaId = '55ed9830-d52d-47c4-8755-23522d940f53';
+
+  it('substitui traduções, princípios e galeria na mesma transação', async () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: galleryMediaId, kind: 'IMAGE' }]),
+      profileTranslation: { deleteMany: jest.fn().mockResolvedValue({ count: 3 }) },
+      socialLink: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      profilePrinciple: { deleteMany: jest.fn().mockResolvedValue({ count: 3 }) },
+      profileGalleryMedia: { deleteMany: jest.fn().mockResolvedValue({ count: 9 }) },
+      profile: {
+        update: jest.fn().mockResolvedValue({ id: 'profile-id' }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      profile: { findFirst: jest.fn().mockResolvedValue({ id: 'profile-id' }) },
+      $transaction: jest.fn(async (operation: (client: typeof tx) => unknown) => operation(tx)),
+    } as unknown as PrismaService;
+    const cache = {
+      invalidateByPrefix: jest.fn().mockResolvedValue(undefined),
+    } as unknown as CacheService;
+    const sanitizer = {
+      sanitize: jest.fn((value: string) => value),
+      hasMeaningfulContent: jest.fn(() => true),
+    } as RichTextSanitizer;
+    const service = new AdminContentService(prisma, cache, sanitizer);
+    const body = {
+      availableForWork: true,
+      avatarMediaId: null,
+      resumeMediaId: null,
+      publicEmail: null,
+      publicLocation: null,
+      translations: [
+        {
+          locale: 'pt-BR',
+          fullName: 'Felipe Almeida',
+          headline: 'Engenheiro de Software',
+          summary: 'Resumo',
+          bio: 'Biografia',
+          aboutEyebrow: 'Sobre',
+          aboutTitle: 'Engenharia além da implementação',
+          aboutIntro: 'Introdução',
+          aboutPrinciplesTitle: 'Como eu trabalho',
+          aboutGalleryTitle: 'Além do código',
+          aboutGalleryText: 'Registros pessoais',
+          aboutResumeLabel: 'Baixar currículo',
+        },
+      ],
+      socialLinks: [],
+      principles: [
+        {
+          sortOrder: 0,
+          translations: [
+            {
+              locale: 'pt-BR',
+              title: 'Arquitetura com propósito',
+              text: 'Complexidade precisa ser justificada.',
+            },
+          ],
+        },
+      ],
+      galleryMediaIds: [galleryMediaId],
+    } satisfies UpdateProfileAdminDto;
+
+    await service.updateProfile(body, admin);
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.profilePrinciple.deleteMany).toHaveBeenCalledWith({
+      where: { profileId: 'profile-id' },
+    });
+    expect(tx.profileGalleryMedia.deleteMany).toHaveBeenCalledWith({
+      where: { profileId: 'profile-id' },
+    });
+    expect(tx.profile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          translations: {
+            create: [
+              expect.objectContaining({
+                aboutTitle: 'Engenharia além da implementação',
+                aboutGalleryText: 'Registros pessoais',
+              }),
+            ],
+          },
+          principles: {
+            create: [
+              expect.objectContaining({
+                translations: {
+                  create: [expect.objectContaining({ title: 'Arquitetura com propósito' })],
+                },
+              }),
+            ],
+          },
+          galleryMedia: { create: [{ mediaAssetId: galleryMediaId, sortOrder: 0 }] },
+        }),
+      }),
+    );
+    expect(cache.invalidateByPrefix).toHaveBeenCalledWith('public:profile:');
+  });
+});

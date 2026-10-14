@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
 import { AdminFeedbackModal, AdminModal } from './admin-modal';
-import { AdminMediaPicker } from './admin-media-picker';
+import { AdminMediaMultiPicker, AdminMediaPicker } from './admin-media-picker';
 
 type LocaleKey = 'pt-BR' | 'en' | 'es';
 
@@ -20,8 +20,26 @@ interface TranslationState {
   headline: string;
   summary: string;
   bio: string;
+  aboutEyebrow: string;
+  aboutTitle: string;
+  aboutIntro: string;
+  aboutPrinciplesTitle: string;
+  aboutGalleryTitle: string;
+  aboutGalleryText: string;
+  aboutResumeLabel: string;
   seoTitle: string;
   seoDescription: string;
+}
+
+interface PrincipleTranslationState {
+  locale: LocaleKey;
+  title: string;
+  text: string;
+}
+
+interface PrincipleState {
+  clientKey: string;
+  translations: PrincipleTranslationState[];
 }
 
 interface SocialLinkState {
@@ -44,6 +62,13 @@ interface ProfileResponse {
     headline: string;
     summary: string;
     bio: string;
+    aboutEyebrow: string;
+    aboutTitle: string;
+    aboutIntro: string;
+    aboutPrinciplesTitle: string;
+    aboutGalleryTitle: string;
+    aboutGalleryText: string;
+    aboutResumeLabel: string;
     seoTitle: string | null;
     seoDescription: string | null;
   }>;
@@ -54,6 +79,11 @@ interface ProfileResponse {
     sortOrder: number;
     visible: boolean;
   }>;
+  principles: Array<{
+    id: string;
+    translations: Array<{ locale: string; title: string; text: string }>;
+  }>;
+  galleryMedia: Array<{ mediaAssetId: string; sortOrder: number }>;
 }
 
 function blankTranslation(locale: LocaleKey): TranslationState {
@@ -63,9 +93,31 @@ function blankTranslation(locale: LocaleKey): TranslationState {
     headline: '',
     summary: '',
     bio: '',
+    aboutEyebrow: '',
+    aboutTitle: '',
+    aboutIntro: '',
+    aboutPrinciplesTitle: '',
+    aboutGalleryTitle: '',
+    aboutGalleryText: '',
+    aboutResumeLabel: '',
     seoTitle: '',
     seoDescription: '',
   };
+}
+
+function blankPrinciple(clientKey = crypto.randomUUID()): PrincipleState {
+  return {
+    clientKey,
+    translations: locales.map((locale) => ({ locale, title: '', text: '' })),
+  };
+}
+
+function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
+  const target = index + direction;
+  if (target < 0 || target >= items.length) return items;
+  const reordered = [...items];
+  [reordered[index], reordered[target]] = [reordered[target]!, reordered[index]!];
+  return reordered;
 }
 
 export function AdminProfileForm() {
@@ -74,6 +126,8 @@ export function AdminProfileForm() {
     locales.map(blankTranslation),
   );
   const [socialLinks, setSocialLinks] = useState<SocialLinkState[]>([]);
+  const [principles, setPrinciples] = useState<PrincipleState[]>([]);
+  const [galleryMediaIds, setGalleryMediaIds] = useState<string[]>([]);
   const [publicEmail, setPublicEmail] = useState('');
   const [publicLocation, setPublicLocation] = useState('');
   const [availableForWork, setAvailableForWork] = useState(false);
@@ -107,6 +161,13 @@ export function AdminProfileForm() {
                   headline: source.headline,
                   summary: source.summary,
                   bio: source.bio,
+                  aboutEyebrow: source.aboutEyebrow,
+                  aboutTitle: source.aboutTitle,
+                  aboutIntro: source.aboutIntro,
+                  aboutPrinciplesTitle: source.aboutPrinciplesTitle,
+                  aboutGalleryTitle: source.aboutGalleryTitle,
+                  aboutGalleryText: source.aboutGalleryText,
+                  aboutResumeLabel: source.aboutResumeLabel,
                   seoTitle: source.seoTitle ?? '',
                   seoDescription: source.seoDescription ?? '',
                 }
@@ -118,6 +179,22 @@ export function AdminProfileForm() {
             ...item,
             iconKey: item.iconKey ?? '',
           })),
+        );
+        setPrinciples(
+          data.principles.map((principle) => ({
+            clientKey: principle.id,
+            translations: locales.map((locale) => {
+              const source = principle.translations.find(
+                (item) => prismaToLocale[item.locale] === locale,
+              );
+              return { locale, title: source?.title ?? '', text: source?.text ?? '' };
+            }),
+          })),
+        );
+        setGalleryMediaIds(
+          [...data.galleryMedia]
+            .sort((left, right) => left.sortOrder - right.sortOrder)
+            .map((item) => item.mediaAssetId),
         );
       })
       .catch((cause: Error) =>
@@ -160,6 +237,11 @@ export function AdminProfileForm() {
             iconKey: item.iconKey || null,
             sortOrder: index,
           })),
+          principles: principles.map((principle, index) => ({
+            sortOrder: index,
+            translations: principle.translations,
+          })),
+          galleryMediaIds,
         }),
       });
 
@@ -320,6 +402,43 @@ export function AdminProfileForm() {
                   onChange={(value) => updateTranslation(index, 'bio', value)}
                 />
                 <Field
+                  label="Sobre · chamada curta"
+                  value={translation.aboutEyebrow}
+                  onChange={(value) => updateTranslation(index, 'aboutEyebrow', value)}
+                />
+                <Field
+                  label="Sobre · título principal"
+                  value={translation.aboutTitle}
+                  onChange={(value) => updateTranslation(index, 'aboutTitle', value)}
+                />
+                <Area
+                  label="Sobre · introdução"
+                  value={translation.aboutIntro}
+                  onChange={(value) => updateTranslation(index, 'aboutIntro', value)}
+                  rows={3}
+                />
+                <Field
+                  label="Sobre · título dos princípios"
+                  value={translation.aboutPrinciplesTitle}
+                  onChange={(value) => updateTranslation(index, 'aboutPrinciplesTitle', value)}
+                />
+                <Field
+                  label="Sobre · título da galeria"
+                  value={translation.aboutGalleryTitle}
+                  onChange={(value) => updateTranslation(index, 'aboutGalleryTitle', value)}
+                />
+                <Area
+                  label="Sobre · texto da galeria"
+                  value={translation.aboutGalleryText}
+                  onChange={(value) => updateTranslation(index, 'aboutGalleryText', value)}
+                  rows={3}
+                />
+                <Field
+                  label="Sobre · texto do botão de currículo"
+                  value={translation.aboutResumeLabel}
+                  onChange={(value) => updateTranslation(index, 'aboutResumeLabel', value)}
+                />
+                <Field
                   label="SEO title"
                   value={translation.seoTitle}
                   onChange={(value) => updateTranslation(index, 'seoTitle', value)}
@@ -332,6 +451,139 @@ export function AdminProfileForm() {
               </div>
             </section>
           ))}
+
+          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold">Princípios da página Sobre</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  Adicione, traduza e defina a ordem dos cartões exibidos no site.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrinciples((items) => [...items, blankPrinciple()])}
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm"
+              >
+                Adicionar princípio
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-5">
+              {principles.map((principle, principleIndex) => (
+                <article
+                  key={principle.clientKey}
+                  className="rounded-xl border border-slate-800 bg-slate-950/50 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <strong>Princípio {principleIndex + 1}</strong>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={principleIndex === 0}
+                        onClick={() =>
+                          setPrinciples((items) => moveItem(items, principleIndex, -1))
+                        }
+                        aria-label={`Mover princípio ${principleIndex + 1} para cima`}
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={principleIndex === principles.length - 1}
+                        onClick={() => setPrinciples((items) => moveItem(items, principleIndex, 1))}
+                        aria-label={`Mover princípio ${principleIndex + 1} para baixo`}
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPrinciples((items) =>
+                            items.filter((_, current) => current !== principleIndex),
+                          )
+                        }
+                        className="px-2 text-sm text-red-300"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                    {principle.translations.map((translation, translationIndex) => (
+                      <div key={translation.locale} className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          {translation.locale}
+                        </p>
+                        <Field
+                          label="Título"
+                          value={translation.title}
+                          onChange={(value) =>
+                            setPrinciples((items) =>
+                              items.map((item, current) =>
+                                current === principleIndex
+                                  ? {
+                                      ...item,
+                                      translations: item.translations.map(
+                                        (localized, localizedIndex) =>
+                                          localizedIndex === translationIndex
+                                            ? { ...localized, title: value }
+                                            : localized,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                        <Area
+                          label="Texto"
+                          value={translation.text}
+                          rows={4}
+                          fullWidth={false}
+                          onChange={(value) =>
+                            setPrinciples((items) =>
+                              items.map((item, current) =>
+                                current === principleIndex
+                                  ? {
+                                      ...item,
+                                      translations: item.translations.map(
+                                        (localized, localizedIndex) =>
+                                          localizedIndex === translationIndex
+                                            ? { ...localized, text: value }
+                                            : localized,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <h3 className="text-xl font-bold">Galeria da página Sobre</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Selecione imagens da biblioteca e ajuste a ordem com as setas.
+            </p>
+            <div className="mt-5">
+              <AdminMediaMultiPicker
+                label="Imagens da galeria"
+                values={galleryMediaIds}
+                onChange={setGalleryMediaIds}
+                ordered
+              />
+            </div>
+          </section>
 
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <div className="flex items-center justify-between gap-4">
@@ -490,19 +742,23 @@ function Area({
   label,
   value,
   onChange,
+  rows = 6,
+  fullWidth = true,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  rows?: number;
+  fullWidth?: boolean;
 }) {
   return (
-    <label className="text-sm font-semibold md:col-span-2">
+    <label className={`text-sm font-semibold ${fullWidth ? 'md:col-span-2' : ''}`}>
       {label}
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required
-        rows={6}
+        rows={rows}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
       />
     </label>

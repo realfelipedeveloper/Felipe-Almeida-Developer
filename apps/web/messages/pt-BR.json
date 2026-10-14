@@ -54,30 +54,6 @@
     "emptyArticles": "Nenhum artigo publicado neste idioma ainda.",
     "emptyNews": "Nenhuma notícia publicada neste idioma ainda."
   },
-  "about": {
-    "eyebrow": "Sobre",
-    "title": "Engenharia de software além da implementação.",
-    "intro": "Atuação em sistemas web e aplicações corporativas, passando por manutenção, modernização, integrações, arquitetura e desenvolvimento Full Stack.",
-    "fallbackBio": "Ao longo da trajetória profissional, participei da construção, manutenção e evolução de sistemas em produção, incluindo aplicações legadas com regras de negócio consolidadas e projetos modernos baseados em APIs e interfaces reativas. O foco permanece em entender o problema antes de escolher a tecnologia.",
-    "principlesTitle": "Como eu trabalho",
-    "principles": {
-      "architecture": {
-        "title": "Arquitetura com propósito",
-        "text": "Complexidade precisa ser justificada. Monólito modular, filas, cache ou serviços separados entram quando o problema pede."
-      },
-      "security": {
-        "title": "Segurança desde o desenho",
-        "text": "Validação, autorização, rate limiting, observabilidade e gestão de segredos fazem parte da solução, não do acabamento."
-      },
-      "maintenance": {
-        "title": "Código para continuar evoluindo",
-        "text": "Clean Code, SOLID, testes, documentação útil e decisões explícitas reduzem o custo das próximas mudanças."
-      }
-    },
-    "galleryTitle": "Além do código",
-    "galleryText": "Alguns registros que ajudam a deixar o portfólio com identidade própria.",
-    "resume": "Baixar currículo"
-  },
   "projects": {
     "eyebrow": "Projetos",
     "title": "Problemas reais, decisões técnicas explícitas.",
