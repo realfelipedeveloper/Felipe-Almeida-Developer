@@ -6,7 +6,7 @@
  * Exemplo:
  *   node ../../infra/scripts/run-with-env.mjs next dev -p {WEB_PORT}
  */
-import { spawn } from 'node:child_process';
+import spawn from 'cross-spawn';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +26,10 @@ function parseEnv(content) {
     if (separator < 1) continue;
     const key = line.slice(0, separator).trim();
     let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
     parsed[key] = value;
@@ -54,7 +57,6 @@ const child = spawn(command, args, {
   cwd: process.cwd(),
   env,
   stdio: 'inherit',
-  shell: process.platform === 'win32',
 });
 
 child.on('exit', (code, signal) => {

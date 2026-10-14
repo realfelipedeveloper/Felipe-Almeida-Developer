@@ -33,9 +33,11 @@ No PowerShell:
 corepack enable
 corepack prepare pnpm@9.12.0 --activate
 Copy-Item .env.example .env
+# Edite ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD no .env
 pnpm install --frozen-lockfile
 pnpm infra:up
 pnpm db:setup
+pnpm db:admin:reset
 pnpm dev
 ```
 
@@ -52,6 +54,10 @@ Serviços locais:
 - Mailpit: `http://localhost:8025`.
 
 O `.env.example` usa somente valores de desenvolvimento e marcadores seguros. Antes de produção, substitua todos os segredos, endereços e campos `TODO`; a aplicação rejeita configurações inseguras críticas quando `NODE_ENV=production`.
+
+`pnpm infra:up` aguarda PostgreSQL, Redis e RabbitMQ ficarem saudáveis. O `pnpm dev` também confirma que essas dependências estão aceitando conexões, gera o Prisma Client e aplica migrations compartilhadas pendentes com `prisma migrate deploy`, evitando que API e worker iniciem com artefatos ausentes ou contra um schema antigo.
+
+`ADMIN_INITIAL_PASSWORD` cria somente o primeiro administrador em um banco vazio. Se o volume PostgreSQL já existir e você alterar a credencial no `.env`, execute `pnpm db:admin:reset`. O comando funciona apenas fora de produção, sincroniza o `SUPER_ADMIN` de desenvolvimento, revoga sessões anteriores e exige troca de senha após o login.
 
 ## Banco e migrations
 

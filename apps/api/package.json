@@ -16,6 +16,7 @@
     "db:migrate:dev": "node ../../infra/scripts/run-with-env.mjs prisma migrate dev --schema prisma/schema.prisma",
     "db:migrate:deploy": "node ../../infra/scripts/run-with-env.mjs prisma migrate deploy --schema prisma/schema.prisma",
     "db:seed": "node ../../infra/scripts/run-with-env.mjs prisma db seed --schema prisma/schema.prisma",
+    "db:admin:reset": "node ../../infra/scripts/run-with-env.mjs node prisma/reset-development-admin.cjs",
     "db:studio": "node ../../infra/scripts/run-with-env.mjs prisma studio --schema prisma/schema.prisma",
     "db:check": "node ../../infra/scripts/run-with-env.mjs node prisma/check.cjs",
     "security:audit-rich-text": "node ../../infra/scripts/run-with-env.mjs ts-node --transpile-only src/infra/security/audit-rich-text.ts",
