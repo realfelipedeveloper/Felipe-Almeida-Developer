@@ -54,30 +54,6 @@
     "emptyArticles": "No articles published in this language yet.",
     "emptyNews": "No news published in this language yet."
   },
-  "about": {
-    "eyebrow": "About",
-    "title": "Software engineering beyond implementation.",
-    "intro": "Experience with web systems and enterprise applications across maintenance, modernization, integrations, architecture and Full Stack development.",
-    "fallbackBio": "Throughout my professional path I have helped build, maintain and evolve production systems, including legacy applications with established business rules and modern projects based on APIs and reactive interfaces. The focus remains on understanding the problem before choosing the technology.",
-    "principlesTitle": "How I work",
-    "principles": {
-      "architecture": {
-        "title": "Purposeful architecture",
-        "text": "Complexity must be justified. Modular monoliths, queues, cache or separate services enter when the problem requires them."
-      },
-      "security": {
-        "title": "Security by design",
-        "text": "Validation, authorization, rate limiting, observability and secret management are part of the solution, not final polish."
-      },
-      "maintenance": {
-        "title": "Code built to evolve",
-        "text": "Clean Code, SOLID, tests, useful documentation and explicit decisions lower the cost of future changes."
-      }
-    },
-    "galleryTitle": "Beyond code",
-    "galleryText": "A few personal records that give the portfolio its own identity.",
-    "resume": "Download résumé"
-  },
   "projects": {
     "eyebrow": "Projects",
     "title": "Real problems, explicit technical decisions.",

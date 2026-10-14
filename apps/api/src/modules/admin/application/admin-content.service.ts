@@ -52,7 +52,15 @@ export class AdminContentService {
   async getProfile() {
     const profile = await this.prisma.profile.findFirst({
       orderBy: { createdAt: 'asc' },
-      include: { translations: true, socialLinks: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        translations: true,
+        socialLinks: { orderBy: { sortOrder: 'asc' } },
+        principles: {
+          orderBy: { sortOrder: 'asc' },
+          include: { translations: true },
+        },
+        galleryMedia: { orderBy: { sortOrder: 'asc' } },
+      },
     });
     if (!profile) throw new NotFoundException('Perfil não encontrado.');
     return profile;
@@ -65,9 +73,16 @@ export class AdminContentService {
       await this.lockMediaReferences(tx, [
         { id: body.avatarMediaId, kind: 'IMAGE', fieldLabel: 'avatar' },
         { id: body.resumeMediaId, kind: 'PDF', fieldLabel: 'currículo' },
+        ...body.galleryMediaIds.map((id) => ({
+          id,
+          kind: 'IMAGE' as const,
+          fieldLabel: 'galeria da página Sobre',
+        })),
       ]);
       await tx.profileTranslation.deleteMany({ where: { profileId: profile.id } });
       await tx.socialLink.deleteMany({ where: { profileId: profile.id } });
+      await tx.profilePrinciple.deleteMany({ where: { profileId: profile.id } });
+      await tx.profileGalleryMedia.deleteMany({ where: { profileId: profile.id } });
       const updated = await tx.profile.update({
         where: { id: profile.id },
         data: {
@@ -83,6 +98,13 @@ export class AdminContentService {
               headline: item.headline,
               summary: item.summary,
               bio: item.bio,
+              aboutEyebrow: item.aboutEyebrow,
+              aboutTitle: item.aboutTitle,
+              aboutIntro: item.aboutIntro,
+              aboutPrinciplesTitle: item.aboutPrinciplesTitle,
+              aboutGalleryTitle: item.aboutGalleryTitle,
+              aboutGalleryText: item.aboutGalleryText,
+              aboutResumeLabel: item.aboutResumeLabel,
               seoTitle: item.seoTitle ?? null,
               seoDescription: item.seoDescription ?? null,
             })),
@@ -96,8 +118,34 @@ export class AdminContentService {
               visible: item.visible ?? true,
             })),
           },
+          principles: {
+            create: body.principles.map((item, index) => ({
+              sortOrder: item.sortOrder ?? index,
+              translations: {
+                create: item.translations.map((translation) => ({
+                  locale: toPrismaLocale(translation.locale),
+                  title: translation.title,
+                  text: translation.text,
+                })),
+              },
+            })),
+          },
+          galleryMedia: {
+            create: body.galleryMediaIds.map((mediaAssetId, index) => ({
+              mediaAssetId,
+              sortOrder: index,
+            })),
+          },
         },
-        include: { translations: true, socialLinks: { orderBy: { sortOrder: 'asc' } } },
+        include: {
+          translations: true,
+          socialLinks: { orderBy: { sortOrder: 'asc' } },
+          principles: {
+            orderBy: { sortOrder: 'asc' },
+            include: { translations: true },
+          },
+          galleryMedia: { orderBy: { sortOrder: 'asc' } },
+        },
       });
       await this.audit(tx, admin, 'PROFILE_UPDATED', 'Profile', profile.id);
       return updated;

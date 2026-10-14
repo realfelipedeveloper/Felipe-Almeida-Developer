@@ -48,6 +48,7 @@ export interface MediaListFilters {
 export interface MediaReferenceCounts {
   profileAvatars?: number;
   profileResumes?: number;
+  profileGallery?: number;
   projectCovers?: number;
   projectGallery?: number;
   articleCovers?: number;
