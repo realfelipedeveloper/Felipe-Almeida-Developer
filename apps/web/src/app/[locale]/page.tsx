@@ -7,13 +7,8 @@ import { EmptyState } from '@/components/empty-state';
 import { JsonLd } from '@/components/json-ld';
 import { ProjectCard } from '@/components/project-card';
 import { isLocale, type Locale } from '@/i18n/config';
-import {
-  getArticles,
-  getNews,
-  getProfile,
-  getProjects,
-} from '@/lib/api/client';
-import { cleanSeedText, formatDate } from '@/lib/content';
+import { getArticles, getNews, getProfile, getProjects } from '@/lib/api/client';
+import { cleanSeedText, formatDate, mediaUrl } from '@/lib/content';
 import { absoluteUrl, pageMetadata } from '@/lib/seo';
 
 export async function generateMetadata({
@@ -31,25 +26,13 @@ export async function generateMetadata({
   });
 }
 
-export default async function HomePage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   if (!isLocale(rawLocale)) return null;
 
   const locale: Locale = rawLocale;
 
-  const [
-    tHero,
-    tHome,
-    tAvailability,
-    tProjects,
-    tArticles,
-    tNews,
-    tCommon,
-  ] = await Promise.all([
+  const [tHero, tHome, tAvailability, tProjects, tArticles, tNews, tCommon] = await Promise.all([
     getTranslations({ locale, namespace: 'hero' }),
     getTranslations({ locale, namespace: 'home' }),
     getTranslations({ locale, namespace: 'availability' }),
@@ -67,10 +50,7 @@ export default async function HomePage({
   ]);
 
   const fullName = cleanSeedText(profile?.fullName, tHero('fallbackTitle'));
-  const headline = cleanSeedText(
-    profile?.headline,
-    tHero('fallbackHeadline'),
-  );
+  const headline = cleanSeedText(profile?.headline, tHero('fallbackHeadline'));
   const summary = cleanSeedText(profile?.summary, tHero('fallbackSummary'));
 
   return (
@@ -83,7 +63,9 @@ export default async function HomePage({
           jobTitle: headline,
           description: summary,
           url: absoluteUrl(`/${locale}`),
-          image: absoluteUrl('/images/Eu.png'),
+          image: profile?.avatarMediaId
+            ? mediaUrl(profile.avatarMediaId)
+            : absoluteUrl('/images/Eu.png'),
           sameAs: profile?.socialLinks.map((link) => link.url) ?? [],
         }}
       />
@@ -114,10 +96,7 @@ export default async function HomePage({
               {tHero('contact')}
             </Link>
 
-            <Link
-              href={`/${locale}/sobre`}
-              className="section-link px-2 py-3"
-            >
+            <Link href={`/${locale}/sobre`} className="section-link px-2 py-3">
               {tHero('about')}
               <span aria-hidden="true">→</span>
             </Link>
@@ -142,20 +121,28 @@ export default async function HomePage({
         <div className="relative mx-auto w-full max-w-md md:max-w-[29rem]">
           <div className="absolute -inset-8 rounded-[3rem] bg-zinc-400/10 blur-3xl dark:bg-zinc-400/[0.07]" />
           <div className="hero-photo">
-            <Image
-              src="/images/Eu.png"
-              alt={fullName}
-              width={1170}
-              height={1560}
-              priority
-              className="aspect-[4/5] w-full object-cover object-top grayscale-[15%] contrast-[1.04]"
-            />
+            {profile?.avatarMediaId ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaUrl(profile.avatarMediaId) ?? undefined}
+                alt={fullName}
+                className="aspect-[4/5] w-full object-cover object-top grayscale-[15%] contrast-[1.04]"
+              />
+            ) : (
+              <Image
+                src="/images/Eu.png"
+                alt={fullName}
+                width={1170}
+                height={1560}
+                priority
+                className="aspect-[4/5] w-full object-cover object-top grayscale-[15%] contrast-[1.04]"
+              />
+            )}
           </div>
 
           <div className="hero-code">
             <div>
-              <span className="code-dim">01</span>{' '}
-              <span>const engineer = {'{'}</span>
+              <span className="code-dim">01</span> <span>const engineer = {'{'}</span>
             </div>
             <div>
               <span className="code-dim">02</span>{' '}
@@ -181,9 +168,7 @@ export default async function HomePage({
           <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-end">
             <div>
               <p className="eyebrow">{tHome('projectsEyebrow')}</p>
-              <h2 className="section-heading mt-4">
-                {tHome('projectsTitle')}
-              </h2>
+              <h2 className="section-heading mt-4">{tHome('projectsTitle')}</h2>
             </div>
             <div className="md:text-right">
               <p className="text-sm leading-7 text-zinc-600 dark:text-zinc-400">
@@ -222,9 +207,7 @@ export default async function HomePage({
             <div className="relative grid gap-8 md:grid-cols-[0.65fr_1.35fr] md:items-end">
               <p className="eyebrow">01 / PHILOSOPHY</p>
               <div>
-                <h2 className="section-heading max-w-3xl">
-                  {tHome('aboutTitle')}
-                </h2>
+                <h2 className="section-heading max-w-3xl">{tHome('aboutTitle')}</h2>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-zinc-600 dark:text-zinc-400">
                   {tHome('aboutText')}
                 </p>
@@ -264,12 +247,12 @@ export default async function HomePage({
                   meta={
                     article.publishedAt
                       ? tArticles('publishedAt', {
-                          date:
-                            formatDate(article.publishedAt, locale) ?? '',
+                          date: formatDate(article.publishedAt, locale) ?? '',
                         })
                       : null
                   }
                   readMore={tCommon('readMore')}
+                  coverMediaId={article.coverMediaId}
                 />
               ))
             ) : (
@@ -316,6 +299,7 @@ export default async function HomePage({
                       : null
                   }
                   readMore={tCommon('readMore')}
+                  coverMediaId={item.coverMediaId}
                 />
               ))
             ) : (
@@ -333,9 +317,7 @@ export default async function HomePage({
           <div className="relative flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="eyebrow">SIGNAL / NO NOISE</p>
-              <h2 className="section-heading mt-4">
-                {tHome('newsletterTitle')}
-              </h2>
+              <h2 className="section-heading mt-4">{tHome('newsletterTitle')}</h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-400">
                 {tHome('newsletterText')}
               </p>

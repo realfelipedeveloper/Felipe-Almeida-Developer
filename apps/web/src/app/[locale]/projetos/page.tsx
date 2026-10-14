@@ -53,11 +53,11 @@ export default async function ProjectsPage({
         <form action={`/${locale}/projetos`} className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[1fr_1fr_1fr_auto_auto] dark:border-slate-800 dark:bg-slate-900/60">
           <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
             {t('filterTechnology')}
-            <input name="technology" defaultValue={technology} placeholder="node-js" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
+            <input name="technology" defaultValue={technology} placeholder="Ex.: node-js" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
           </label>
           <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
             {t('filterTag')}
-            <input name="tag" defaultValue={tag} placeholder="arquitetura" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
+            <input name="tag" defaultValue={tag} placeholder="Ex.: arquitetura" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700" />
           </label>
           <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
             {t('filterLifecycle')}
@@ -72,7 +72,7 @@ export default async function ProjectsPage({
           </label>
           <div className="flex items-end gap-2">
             <button type="submit" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-950">{t('filterApply')}</button>
-            <Link href={`/${locale}/projetos`} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold dark:border-slate-700">{t('filterClear')}</Link>
+            <a href={`/${locale}/projetos`} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold dark:border-slate-700">{t('filterClear')}</a>
           </div>
         </form>
 

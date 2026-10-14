@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Locale } from '@/i18n/config';
+import { CookiePreferencesButton } from './cookie-preferences-button';
 
 export function SiteFooter({
   locale,
@@ -7,6 +8,7 @@ export function SiteFooter({
   rights,
   privacy,
   cookies,
+  cookiePreferences,
   rss,
 }: {
   locale: Locale;
@@ -14,6 +16,7 @@ export function SiteFooter({
   rights: string;
   privacy: string;
   cookies: string;
+  cookiePreferences: string;
   rss: string;
 }) {
   return (
@@ -28,12 +31,16 @@ export function SiteFooter({
           </div>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-zinc-500">
-            <Link href={`/${locale}/privacidade`} className="hover:text-zinc-950 dark:hover:text-white">
+            <Link
+              href={`/${locale}/privacidade`}
+              className="hover:text-zinc-950 dark:hover:text-white"
+            >
               {privacy}
             </Link>
             <Link href={`/${locale}/cookies`} className="hover:text-zinc-950 dark:hover:text-white">
               {cookies}
             </Link>
+            <CookiePreferencesButton label={cookiePreferences} />
             <Link href={`/${locale}/rss.xml`} className="hover:text-zinc-950 dark:hover:text-white">
               {rss}
             </Link>

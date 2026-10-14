@@ -18,12 +18,11 @@ export function resolveAllowedOrigins(): string[] {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  const candidates = [
-    process.env.WEB_URL ?? 'http://localhost:3000',
-    ...configured,
-  ];
+  const candidates = [process.env.WEB_URL ?? 'http://localhost:3000', ...configured];
 
-  return [...new Set(candidates.map(asHttpOrigin).filter((value): value is string => Boolean(value)))];
+  return [
+    ...new Set(candidates.map(asHttpOrigin).filter((value): value is string => Boolean(value))),
+  ];
 }
 
 export function resolveBodyLimit(): string {
@@ -32,10 +31,7 @@ export function resolveBodyLimit(): string {
 }
 
 export function shouldEnableSwagger(): boolean {
-  return (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.SWAGGER_ENABLED === 'true'
-  );
+  return process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true';
 }
 
 function assertStrongSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET'): void {
@@ -53,18 +49,28 @@ export function validateProductionSecurityConfig(): void {
   assertStrongSecret('JWT_ACCESS_SECRET');
   assertStrongSecret('JWT_REFRESH_SECRET');
 
+  for (const name of [
+    'PRIVACY_REQUEST_TOKEN_SECRET',
+    'PRIVACY_HASH_SECRET',
+    'NEWSLETTER_TOKEN_SECRET',
+    'PASSWORD_RESET_TOKEN_SECRET',
+  ] as const) {
+    const value = process.env[name]?.trim();
+    if (!value || value.length < 32 || value.startsWith('gere-')) {
+      throw new Error(`${name} precisa ser configurado em produção com pelo menos 32 caracteres.`);
+    }
+  }
+
   const webOrigin = asHttpOrigin(process.env.WEB_URL);
   if (!webOrigin || !webOrigin.startsWith('https://')) {
     throw new Error('WEB_URL precisa utilizar HTTPS em produção.');
   }
 
-  if (
-    process.env.METRICS_ENABLED !== 'false' &&
-    !process.env.METRICS_TOKEN?.trim()
-  ) {
-    throw new Error(
-      'METRICS_TOKEN é obrigatório em produção quando METRICS_ENABLED não estiver desativado.',
-    );
+  if (process.env.METRICS_ENABLED !== 'false') {
+    const metricsToken = process.env.METRICS_TOKEN?.trim();
+    if (!metricsToken || metricsToken.length < 32 || metricsToken.startsWith('gere-')) {
+      throw new Error('METRICS_TOKEN precisa ter pelo menos 32 caracteres em produção.');
+    }
   }
 }
 
@@ -84,10 +90,7 @@ export function httpSecurityHeaders(
   response.setHeader('Cross-Origin-Resource-Policy', 'same-site');
 
   if (request.path.startsWith('/api/admin')) {
-    response.setHeader(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, proxy-revalidate',
-    );
+    response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.setHeader('Pragma', 'no-cache');
   }
 
@@ -99,10 +102,7 @@ export function httpSecurityHeaders(
   }
 
   if (process.env.NODE_ENV === 'production') {
-    response.setHeader(
-      'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains',
-    );
+    response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   next();

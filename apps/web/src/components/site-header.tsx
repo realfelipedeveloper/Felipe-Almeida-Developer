@@ -12,6 +12,7 @@ interface SiteHeaderProps {
     articles: string;
     news: string;
     contact: string;
+    newsletter: string;
     menu: string;
   };
 }
@@ -24,6 +25,7 @@ export function SiteHeader({ locale, labels }: SiteHeaderProps) {
     [labels.articles, `/${locale}/artigos`],
     [labels.news, `/${locale}/noticias`],
     [labels.contact, `/${locale}/contato`],
+    [labels.newsletter, `/${locale}/newsletter`],
   ] as const;
 
   return (

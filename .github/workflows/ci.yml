@@ -30,7 +30,24 @@ jobs:
   verificacoes:
     name: Verificações obrigatórias
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://fad:ci-password@localhost:5432/fad_ci?schema=public
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fad
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: fad_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fad -d fad_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Baixar código
@@ -101,6 +118,12 @@ jobs:
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
 
+      - name: Auditar dependências
+        shell: bash
+        run: |
+          pnpm audit:prod
+          pnpm audit:all
+
       - name: Validar configuração do GitHub
         run: pnpm github:check
 
@@ -109,6 +132,9 @@ jobs:
 
       - name: Validar schema Prisma
         run: pnpm db:validate
+
+      - name: Aplicar migrations em banco limpo
+        run: pnpm db:migrate:deploy
 
       - name: Executar lint
         run: pnpm lint
@@ -119,11 +145,27 @@ jobs:
       - name: Executar testes unitários
         run: pnpm test
 
+      - name: Validar cobertura global mínima
+        run: pnpm test:coverage
+
       - name: Executar build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3333
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
         run: pnpm build
 
-      - name: Executar testes E2E sem infraestrutura externa
+      - name: Validar imagens de produção
+        shell: bash
+        run: |
+          docker build --target api -t fad-api:ci .
+          docker build --target worker -t fad-worker:ci .
+          docker build --target web \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:3333 \
+            --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 \
+            -t fad-web:ci .
+
+      - name: Instalar Chromium do Playwright
+        run: pnpm --filter @fad/web exec playwright install --with-deps chromium
+
+      - name: Executar testes E2E (inclui PostgreSQL via Testcontainers)
         run: pnpm test:e2e

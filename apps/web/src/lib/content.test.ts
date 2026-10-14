@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleanSeedText, htmlToPlainText, safeExternalUrl } from './content';
+import { cleanSeedText, htmlToPlainText, safeExternalUrl, slugify } from './content';
 
 describe('content helpers', () => {
   describe('cleanSeedText', () => {
@@ -66,6 +66,18 @@ describe('content helpers', () => {
 
     it('retorna string vazia para conteúdo vazio', () => {
       expect(htmlToPlainText('')).toBe('');
+    });
+  });
+
+  describe('slugify', () => {
+    it('gera slug em minúsculas e sem acentos', () => {
+      expect(slugify('Deve ser automático 2')).toBe('deve-ser-automatico-2');
+      expect(slugify('API REST: do zero à produção')).toBe('api-rest-do-zero-a-producao');
+    });
+
+    it('transforma pontuação e espaços em separadores seguros', () => {
+      expect(slugify('Node.js + NestJS')).toBe('node-js-nestjs');
+      expect(slugify('  Projeto   QA  2  ')).toBe('projeto-qa-2');
     });
   });
 

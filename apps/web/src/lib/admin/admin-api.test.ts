@@ -1,10 +1,4 @@
-import {
-  afterEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminFetch } from './admin-api';
 
 describe('cliente da API administrativa', () => {
@@ -82,12 +76,29 @@ describe('cliente da API administrativa', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
-    await Promise.all([
-      adminFetch('/api/admin/auth/me'),
-      adminFetch('/api/admin/auth/me'),
-    ]);
+    await Promise.all([adminFetch('/api/admin/auth/me'), adminFetch('/api/admin/auth/me')]);
 
     expect(refreshCalls).toBe(1);
     expect(meCalls).toBe(4);
+  });
+
+  it('deixa o navegador definir o boundary de multipart para FormData', async () => {
+    vi.stubGlobal('document', { cookie: 'fad_admin_csrf=csrf-valido' });
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.has('Content-Type')).toBe(false);
+      expect(headers.get('x-csrf-token')).toBe('csrf-valido');
+      return new Response(JSON.stringify({ id: 'media-1' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const form = new FormData();
+    form.append('file', new Blob(['file'], { type: 'image/png' }), 'file.png');
+    await adminFetch('/api/admin/media', { method: 'POST', body: form });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,15 +17,18 @@ describe('TokenService', () => {
   });
 
   it('emite e valida access e refresh tokens com tipos distintos', async () => {
-    const issued = await service.issue({
-      id: '11111111-1111-4111-8111-111111111111',
-      email: 'admin@example.com',
-      passwordHash: 'hash',
-      role: 'SUPER_ADMIN',
-      active: true,
-      mustChangePassword: false,
-      lastLoginAt: null,
-    }, '22222222-2222-4222-8222-222222222222');
+    const issued = await service.issue(
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'admin@example.com',
+        passwordHash: 'hash',
+        role: 'SUPER_ADMIN',
+        active: true,
+        mustChangePassword: false,
+        lastLoginAt: null,
+      },
+      '22222222-2222-4222-8222-222222222222',
+    );
 
     const access = await service.verifyAccess(issued.accessToken);
     const refresh = await service.verifyRefresh(issued.refreshToken);

@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 const LOCALES = ['pt-BR', 'en', 'es'] as const;
 

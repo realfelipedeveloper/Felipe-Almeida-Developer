@@ -6,5 +6,6 @@ import { EngagementController } from './presentation/engagement.controller';
 @Module({
   controllers: [EngagementController],
   providers: [EngagementService, TurnstileService],
+  exports: [TurnstileService],
 })
 export class EngagementModule {}

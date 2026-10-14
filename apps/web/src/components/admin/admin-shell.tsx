@@ -10,6 +10,7 @@ const links = [
   ['Projetos', '/admin/projetos'],
   ['Artigos', '/admin/artigos'],
   ['Notícias', '/admin/noticias'],
+  ['Mídia', '/admin/midia'],
   ['Contatos', '/admin/contatos'],
   ['Newsletter', '/admin/newsletter'],
   ['Segurança', '/admin/seguranca'],
@@ -31,7 +32,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#09090a] text-zinc-100">
       <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#09090a]/88 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-3.5">
-          <Link href="/admin" className="flex items-center gap-2 text-sm font-extrabold tracking-[-0.035em]">
+          <Link
+            href="/admin"
+            className="flex items-center gap-2 text-sm font-extrabold tracking-[-0.035em]"
+          >
             <span className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-800 bg-zinc-900 font-mono text-[10px] text-zinc-300">
               &lt;/&gt;
             </span>

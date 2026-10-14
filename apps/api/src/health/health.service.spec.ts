@@ -16,11 +16,7 @@ describe('HealthService', () => {
   });
 
   function createService() {
-    return new HealthService(
-      prisma as never,
-      redis as never,
-      rabbitMq as never,
-    );
+    return new HealthService(prisma as never, redis as never, rabbitMq as never);
   }
 
   it('retorna status ok da API', () => {
@@ -45,9 +41,7 @@ describe('HealthService', () => {
   });
 
   it('retorna status down quando o PostgreSQL falha', async () => {
-    prisma.$queryRaw.mockRejectedValueOnce(
-      new Error('database unavailable'),
-    );
+    prisma.$queryRaw.mockRejectedValueOnce(new Error('database unavailable'));
 
     await expect(createService().getDatabaseStatus()).resolves.toEqual(
       expect.objectContaining({
@@ -60,12 +54,10 @@ describe('HealthService', () => {
   it('retorna degradado quando uma dependência crítica falha', async () => {
     prisma.$queryRaw.mockResolvedValueOnce([{ '?column?': 1 }]);
     redis.ping.mockResolvedValueOnce('PONG');
-    rabbitMq.ping.mockRejectedValueOnce(
-      new Error('rabbit unavailable'),
-    );
+    rabbitMq.ping.mockRejectedValueOnce(new Error('rabbit unavailable'));
 
-    await expect(
-      createService().getDependenciesStatus(),
-    ).resolves.toEqual(expect.objectContaining({ status: 'degraded' }));
+    await expect(createService().getDependenciesStatus()).resolves.toEqual(
+      expect.objectContaining({ status: 'degraded' }),
+    );
   });
 });

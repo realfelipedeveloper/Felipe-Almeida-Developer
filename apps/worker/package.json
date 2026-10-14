@@ -9,18 +9,22 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/worker-services.test.ts",
-    "test:e2e": "node -e \"console.log('Integração completa do Worker com PostgreSQL/RabbitMQ será executada na validação funcional final.')\""
+    "test:e2e": "node --import tsx --test --test-concurrency=1 test/worker-integration.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
+    "@testcontainers/postgresql": "12.2.0",
+    "@testcontainers/rabbitmq": "12.2.0",
     "@types/amqplib": "^0.10.7",
-    "prisma": "6.19.0"
+    "@types/html-to-text": "^9.0.4",
+    "@types/node": "^22.10.0",
+    "prisma": "6.19.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
     "amqplib": "^0.10.7",
+    "html-to-text": "^10.0.1",
     "pino": "^9.7.0",
     "pino-pretty": "^13.1.1"
   }

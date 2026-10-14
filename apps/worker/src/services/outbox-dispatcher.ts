@@ -1,7 +1,8 @@
 import { PrismaClient, type OutboxEvent } from '@prisma/client';
-import type { Channel } from 'amqplib';
+import type { ConfirmChannel } from 'amqplib';
 import { EVENTS_EXCHANGE, RabbitConnection } from '../infra/rabbitmq.js';
 import { logger } from '../infra/logger.js';
+import { workerMetrics, type WorkerMetrics } from '../infra/worker-metrics.js';
 
 const MAX_ATTEMPTS = 10;
 const POLL_INTERVAL_MS = 5_000;
@@ -13,6 +14,7 @@ export class OutboxDispatcher {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly rabbit: RabbitConnection,
+    private readonly metrics: WorkerMetrics = workerMetrics,
   ) {}
 
   start(): void {
@@ -45,9 +47,9 @@ export class OutboxDispatcher {
       for (const event of events) {
         await this.publish(channel, event);
       }
-    } catch (error) {
+    } catch {
       logger.error(
-        { categoria: 'filas', erro: error instanceof Error ? error.message : String(error) },
+        { categoria: 'filas', codigo: 'OUTBOX_DISPATCH_FAILED' },
         'Falha no ciclo de publicação da outbox',
       );
     } finally {
@@ -55,13 +57,17 @@ export class OutboxDispatcher {
     }
   }
 
-  private async publish(
-    channel: Channel,
-    event: OutboxEvent,
-  ): Promise<void> {
+  private async publish(channel: ConfirmChannel, event: OutboxEvent): Promise<void> {
     if (!event) return;
 
-    const body: { eventId: string; eventName: string; occurredAt: string; correlationId: string; version: number; payload: unknown } = {
+    const body: {
+      eventId: string;
+      eventName: string;
+      occurredAt: string;
+      correlationId: string;
+      version: number;
+      payload: unknown;
+    } = {
       eventId: event.id,
       eventName: event.eventName,
       occurredAt: event.occurredAt.toISOString(),
@@ -71,33 +77,45 @@ export class OutboxDispatcher {
     };
 
     try {
-      const accepted = channel.publish(EVENTS_EXCHANGE, event.eventName, Buffer.from(JSON.stringify(body)), {
-        persistent: true,
-        contentType: 'application/json',
-        messageId: event.id,
-        correlationId: event.correlationId,
-        timestamp: event.occurredAt.getTime(),
-      });
+      const accepted = channel.publish(
+        EVENTS_EXCHANGE,
+        event.eventName,
+        Buffer.from(JSON.stringify(body)),
+        {
+          persistent: true,
+          contentType: 'application/json',
+          messageId: event.id,
+          correlationId: event.correlationId,
+          timestamp: event.occurredAt.getTime(),
+        },
+      );
 
-      if (!accepted) await new Promise<void>((resolve) => channel.once('drain', resolve));
+      await this.rabbit.confirmPublish(channel, accepted);
 
       await this.prisma.outboxEvent.update({
         where: { id: event.id },
         data: { publishedAt: new Date(), attempts: { increment: 1 }, lastError: null },
       });
+      this.metrics.increment('outbox_published');
 
       logger.info(
-        { categoria: 'filas', eventId: event.id, eventName: event.eventName, correlationId: event.correlationId },
+        {
+          categoria: 'filas',
+          eventId: event.id,
+          eventName: event.eventName,
+          correlationId: event.correlationId,
+        },
         'Evento publicado no RabbitMQ',
       );
     } catch (error) {
+      this.metrics.increment('outbox_failed');
       const attempts = event.attempts + 1;
       const delayMs = Math.min(1_000 * 2 ** attempts, 15 * 60_000);
       await this.prisma.outboxEvent.update({
         where: { id: event.id },
         data: {
           attempts: { increment: 1 },
-          lastError: error instanceof Error ? error.message.slice(0, 4_000) : String(error).slice(0, 4_000),
+          lastError: 'RABBITMQ_PUBLISH_FAILED',
           availableAt: new Date(Date.now() + delayMs),
         },
       });

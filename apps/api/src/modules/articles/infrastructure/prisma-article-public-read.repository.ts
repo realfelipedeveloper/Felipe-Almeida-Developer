@@ -18,12 +18,15 @@ const include = {
 export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPublished(filters: ArticleListFilters): Promise<{ data: PublicArticleListItem[]; total: number }> {
+  async listPublished(
+    filters: ArticleListFilters,
+  ): Promise<{ data: PublicArticleListItem[]; total: number }> {
     const locale = toPrismaLocale(filters.locale);
     const now = new Date();
     const where: Prisma.ArticleWhereInput = {
       publicationStatus: PublicationStatus.PUBLISHED,
       publishedAt: { lte: now },
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
       translations: { some: { locale } },
       ...(filters.tag
         ? { tags: { some: { tag: { translations: { some: { locale, slug: filters.tag } } } } } }
@@ -44,12 +47,16 @@ export class PrismaArticlePublicReadRepository implements ArticlePublicReadRepos
     return { data: rows.map((row) => this.toListItem(row, locale)), total };
   }
 
-  async findPublishedBySlug(localeValue: ArticleListFilters['locale'], slug: string): Promise<PublicArticleDetail | null> {
+  async findPublishedBySlug(
+    localeValue: ArticleListFilters['locale'],
+    slug: string,
+  ): Promise<PublicArticleDetail | null> {
     const locale = toPrismaLocale(localeValue);
     const row = await this.prisma.article.findFirst({
       where: {
         publicationStatus: PublicationStatus.PUBLISHED,
         publishedAt: { lte: new Date() },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
         translations: { some: { locale, slug } },
       },
       include,

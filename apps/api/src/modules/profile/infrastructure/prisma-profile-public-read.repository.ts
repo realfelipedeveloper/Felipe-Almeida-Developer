@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { toPrismaLocale } from '../../../shared/domain/locale.mapper';
-import type { ProfilePublicReadRepository, PublicProfile } from '../application/profile-public.types';
+import type {
+  ProfilePublicReadRepository,
+  PublicProfile,
+} from '../application/profile-public.types';
 
 @Injectable()
 export class PrismaProfilePublicReadRepository implements ProfilePublicReadRepository {
