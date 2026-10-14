@@ -73,6 +73,7 @@ export class PrismaMediaRepository implements MediaRepository {
         OR: [
           { profileAvatars: { some: {} } },
           { profileResumes: { some: {} } },
+          { profileGallery: { some: {} } },
           { projectCovers: { some: { publicationStatus: 'PUBLISHED' } } },
           { projectMedia: { some: { project: { publicationStatus: 'PUBLISHED' } } } },
           {
@@ -192,6 +193,7 @@ export class PrismaMediaRepository implements MediaRepository {
     const [
       profileAvatars,
       profileResumes,
+      profileGallery,
       projectCovers,
       projectGallery,
       articleCovers,
@@ -199,6 +201,7 @@ export class PrismaMediaRepository implements MediaRepository {
     ] = await Promise.all([
       tx.profile.count({ where: { avatarMediaId: id } }),
       tx.profile.count({ where: { resumeMediaId: id } }),
+      tx.profileGalleryMedia.count({ where: { mediaAssetId: id } }),
       tx.project.count({ where: { coverMediaId: id } }),
       tx.projectMedia.count({ where: { mediaAssetId: id } }),
       tx.article.count({ where: { coverMediaId: id } }),
@@ -207,6 +210,7 @@ export class PrismaMediaRepository implements MediaRepository {
     return {
       profileAvatars,
       profileResumes,
+      profileGallery,
       projectCovers,
       projectGallery,
       articleCovers,
@@ -214,6 +218,7 @@ export class PrismaMediaRepository implements MediaRepository {
       total:
         profileAvatars +
         profileResumes +
+        profileGallery +
         projectCovers +
         projectGallery +
         articleCovers +

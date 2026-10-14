@@ -71,10 +71,12 @@ export function AdminMediaMultiPicker({
   label,
   values,
   onChange,
+  ordered = false,
 }: {
   label: string;
   values: string[];
   onChange: (values: string[]) => void;
+  ordered?: boolean;
 }) {
   const [items, setItems] = useState<AdminMediaItem[]>([]);
   const [error, setError] = useState('');
@@ -87,6 +89,14 @@ export function AdminMediaMultiPicker({
 
   function toggle(id: string) {
     onChange(values.includes(id) ? values.filter((value) => value !== id) : [...values, id]);
+  }
+
+  function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= values.length) return;
+    const next = [...values];
+    [next[index], next[target]] = [next[target]!, next[index]!];
+    onChange(next);
   }
 
   return (
@@ -108,6 +118,46 @@ export function AdminMediaMultiPicker({
           <span className="text-xs text-slate-500">Nenhuma imagem disponível.</span>
         )}
       </div>
+      {ordered && values.length ? (
+        <ol className="mt-3 space-y-2">
+          {values.map((id, index) => {
+            const item = items.find((candidate) => candidate.id === id);
+            return (
+              <li
+                key={id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs"
+              >
+                <span className="min-w-0 truncate">
+                  {index + 1}. {item?.originalName ?? id}
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                    aria-label={`Mover ${item?.originalName ?? id} para cima`}
+                    className="rounded border border-slate-700 px-2 py-1 disabled:opacity-40"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === values.length - 1}
+                    onClick={() => move(index, 1)}
+                    aria-label={`Mover ${item?.originalName ?? id} para baixo`}
+                    className="rounded border border-slate-700 px-2 py-1 disabled:opacity-40"
+                  >
+                    ↓
+                  </button>
+                  <button type="button" onClick={() => toggle(id)} className="px-2 text-red-300">
+                    Remover
+                  </button>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
       {error ? <span className="mt-1 block text-xs text-red-300">{error}</span> : null}
     </fieldset>
   );

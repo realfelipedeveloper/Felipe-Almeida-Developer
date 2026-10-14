@@ -99,6 +99,8 @@ model Profile {
   resumeMedia  MediaAsset?          @relation("ProfileResume", fields: [resumeMediaId], references: [id], onDelete: SetNull)
   translations ProfileTranslation[]
   socialLinks  SocialLink[]
+  principles   ProfilePrinciple[]
+  galleryMedia ProfileGalleryMedia[]
   articles     Article[]
 
   @@map("profiles")
@@ -112,6 +114,13 @@ model ProfileTranslation {
   headline  String   @db.VarChar(220)
   summary   String   @db.Text
   bio       String   @db.Text
+  aboutEyebrow String @map("about_eyebrow") @db.VarChar(80)
+  aboutTitle String @map("about_title") @db.VarChar(220)
+  aboutIntro String @map("about_intro") @db.Text
+  aboutPrinciplesTitle String @map("about_principles_title") @db.VarChar(180)
+  aboutGalleryTitle String @map("about_gallery_title") @db.VarChar(180)
+  aboutGalleryText String @map("about_gallery_text") @db.Text
+  aboutResumeLabel String @map("about_resume_label") @db.VarChar(80)
   seoTitle  String?  @map("seo_title") @db.VarChar(180)
   seoDescription String? @map("seo_description") @db.VarChar(320)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -122,6 +131,49 @@ model ProfileTranslation {
   @@unique([profileId, locale])
   @@index([locale])
   @@map("profile_translations")
+}
+
+model ProfilePrinciple {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  profile      Profile                       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  translations ProfilePrincipleTranslation[]
+
+  @@index([profileId, sortOrder])
+  @@map("profile_principles")
+}
+
+model ProfilePrincipleTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  principleId String   @map("principle_id") @db.Uuid
+  locale      Locale
+  title       String   @db.VarChar(180)
+  text        String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  principle ProfilePrinciple @relation(fields: [principleId], references: [id], onDelete: Cascade)
+
+  @@unique([principleId, locale])
+  @@index([locale])
+  @@map("profile_principle_translations")
+}
+
+model ProfileGalleryMedia {
+  profileId    String @map("profile_id") @db.Uuid
+  mediaAssetId String @map("media_asset_id") @db.Uuid
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  profile    Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@id([profileId, mediaAssetId])
+  @@index([mediaAssetId])
+  @@map("profile_gallery_media")
 }
 
 model SocialLink {
@@ -528,6 +580,7 @@ model MediaAsset {
   translations  MediaTranslation[]
   profileAvatars Profile[]          @relation("ProfileAvatar")
   profileResumes Profile[]          @relation("ProfileResume")
+  profileGallery ProfileGalleryMedia[]
   projectCovers  Project[]          @relation("ProjectCover")
   projectMedia   ProjectMedia[]
   articleCovers  Article[]          @relation("ArticleCover")

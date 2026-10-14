@@ -16,6 +16,14 @@ export class PrismaProfilePublicReadRepository implements ProfilePublicReadRepos
       include: {
         translations: { where: { locale } },
         socialLinks: { where: { visible: true }, orderBy: { sortOrder: 'asc' } },
+        principles: {
+          orderBy: { sortOrder: 'asc' },
+          include: { translations: { where: { locale } } },
+        },
+        galleryMedia: {
+          orderBy: { sortOrder: 'asc' },
+          include: { mediaAsset: { include: { translations: { where: { locale } } } } },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -30,11 +38,38 @@ export class PrismaProfilePublicReadRepository implements ProfilePublicReadRepos
       headline: translation.headline,
       summary: translation.summary,
       bio: translation.bio,
+      aboutEyebrow: translation.aboutEyebrow,
+      aboutTitle: translation.aboutTitle,
+      aboutIntro: translation.aboutIntro,
+      aboutPrinciplesTitle: translation.aboutPrinciplesTitle,
+      aboutGalleryTitle: translation.aboutGalleryTitle,
+      aboutGalleryText: translation.aboutGalleryText,
+      aboutResumeLabel: translation.aboutResumeLabel,
+      seoTitle: translation.seoTitle,
+      seoDescription: translation.seoDescription,
       publicEmail: row.publicEmail,
       publicLocation: row.publicLocation,
       availableForWork: row.availableForWork,
       avatarMediaId: row.avatarMediaId,
       resumeMediaId: row.resumeMediaId,
+      principles: row.principles.flatMap((principle) => {
+        const localized = principle.translations[0];
+        return localized
+          ? [
+              {
+                id: principle.id,
+                title: localized.title,
+                text: localized.text,
+                sortOrder: principle.sortOrder,
+              },
+            ]
+          : [];
+      }),
+      gallery: row.galleryMedia.map((item) => ({
+        mediaId: item.mediaAssetId,
+        altText: item.mediaAsset.translations[0]?.altText ?? null,
+        sortOrder: item.sortOrder,
+      })),
       socialLinks: row.socialLinks.map((link) => ({
         label: link.label,
         url: link.url,
