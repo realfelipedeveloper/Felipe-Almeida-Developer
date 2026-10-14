@@ -21,7 +21,7 @@ Idiomas públicos: `pt-BR` (padrão), `en` e `es`.
 
 ## Pré-requisitos
 
-- Node.js 20.11 ou superior;
+- Node.js 22.22 ou superior;
 - pnpm 9.12 via Corepack;
 - Docker Desktop ou Docker Engine com Compose v2.
 

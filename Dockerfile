@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20.11.1-bookworm-slim AS build
+FROM node:22.22.2-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -32,7 +32,7 @@ RUN pnpm build
 RUN pnpm --filter @fad/api deploy --prod /prod/api \
   && pnpm --filter @fad/worker deploy --prod /prod/worker
 
-FROM node:20.11.1-bookworm-slim AS api
+FROM node:22.22.2-bookworm-slim AS api
 ENV NODE_ENV=production
 WORKDIR /app
 RUN apt-get update \
@@ -46,7 +46,7 @@ USER node
 EXPOSE 3333
 CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma && node dist/main.js"]
 
-FROM node:20.11.1-bookworm-slim AS worker
+FROM node:22.22.2-bookworm-slim AS worker
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /prod/worker/node_modules ./node_modules
@@ -56,7 +56,7 @@ USER node
 EXPOSE 9464
 CMD ["node", "dist/main.js"]
 
-FROM node:20.11.1-bookworm-slim AS web
+FROM node:22.22.2-bookworm-slim AS web
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
