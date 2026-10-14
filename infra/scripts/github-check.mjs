@@ -13,7 +13,11 @@ const obrigatorios = [
   '.github/workflows/codeql.yml',
   '.github/workflows/release.yml',
   '.github/workflows/deploy.yml',
+  '.github/workflows/backup.yml',
   '.github/CODEOWNERS',
+  '.github/pull_request_template.md',
+  '.github/ISSUE_TEMPLATE/bug.yml',
+  '.github/ISSUE_TEMPLATE/feature.yml',
 ];
 
 const erros = [];
@@ -66,8 +70,22 @@ if (fs.existsSync(path.join(root, '.github/workflows/auto-pr-hotfix.yml'))) {
 
 if (fs.existsSync(path.join(root, '.github/workflows/deploy.yml'))) {
   const cd = ler('.github/workflows/deploy.yml');
-  if (!cd.includes('workflow_run') || !cd.includes('actions/upload-artifact@v4')) {
+  if (
+    !cd.includes('workflow_run') ||
+    !cd.includes('actions/upload-artifact@v4') ||
+    !cd.includes('github.event.workflow_run.head_sha') ||
+    !cd.includes('git rev-parse HEAD')
+  ) {
     erros.push('O fluxo de entrega contínua não está ligado ao CI da main.');
+  }
+}
+
+if (fs.existsSync(path.join(root, '.github/workflows/backup.yml'))) {
+  const backup = ler('.github/workflows/backup.yml');
+  for (const trecho of ['schedule:', 'BACKUP_DATABASE_URL', 'BACKUP_ENCRYPTION_PASSPHRASE']) {
+    if (!backup.includes(trecho)) {
+      erros.push(`O workflow de backup não contém o requisito: ${trecho}`);
+    }
   }
 }
 
@@ -85,3 +103,4 @@ console.log('- Hotfix e retrointegração: instalados');
 console.log('- CodeQL: instalado');
 console.log('- Release SemVer: instalada');
 console.log('- CD com artefato de entrega: instalado');
+console.log('- Backup PostgreSQL criptografado e agendado: instalado');

@@ -757,6 +757,11 @@ test('worker exige segredo dedicado e WEB_URL HTTPS em produção', () => {
   assert.throws(() => validateWorkerSecurityConfig(), /PRIVACY_HASH_SECRET/);
 
   process.env.PRIVACY_HASH_SECRET = 'h'.repeat(64);
+  delete process.env.NEWSLETTER_TOKEN_SECRET;
+  process.env.PASSWORD_RESET_TOKEN_SECRET = 'p'.repeat(64);
+  assert.throws(() => validateWorkerSecurityConfig(), /NEWSLETTER_TOKEN_SECRET/);
+
+  process.env.NEWSLETTER_TOKEN_SECRET = 'n'.repeat(64);
   process.env.WEB_URL = 'http://portfolio.example.com';
   assert.throws(() => validateWorkerSecurityConfig(), /HTTPS/);
 

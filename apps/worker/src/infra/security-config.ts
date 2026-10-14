@@ -15,6 +15,13 @@ export function validateWorkerSecurityConfig(): void {
     throw new Error('PRIVACY_HASH_SECRET precisa ter pelo menos 32 caracteres.');
   }
 
+  for (const name of ['NEWSLETTER_TOKEN_SECRET', 'PASSWORD_RESET_TOKEN_SECRET'] as const) {
+    const value = process.env[name]?.trim();
+    if (!value || value.length < 32 || value.startsWith('gere-')) {
+      throw new Error(`${name} precisa ter pelo menos 32 caracteres.`);
+    }
+  }
+
   let webUrl: URL;
   try {
     webUrl = new URL(process.env.WEB_URL ?? '');

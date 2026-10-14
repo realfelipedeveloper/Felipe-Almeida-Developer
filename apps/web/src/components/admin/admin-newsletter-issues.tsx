@@ -129,6 +129,14 @@ export function AdminNewsletterIssues() {
   }
 
   async function save() {
+    if (form.publicationStatus === 'PUBLISHED' && !form.publishedAt) {
+      setFeedback({
+        variant: 'error',
+        title: 'Data de publicação obrigatória.',
+        message: 'Informe a data editorial antes de publicar a edição.',
+      });
+      return;
+    }
     const translations = form.translations.filter(
       (translation) => translation.subject.trim() && translation.bodyHtml.trim(),
     );

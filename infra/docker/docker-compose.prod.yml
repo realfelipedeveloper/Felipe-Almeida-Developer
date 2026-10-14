@@ -1,0 +1,208 @@
+name: felipe-almeida-developer-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamdata:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+
+  api:
+    image: felipe-almeida-developer-api:${APP_VERSION:-latest}
+    build:
+      context: ../..
+      target: api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_NAME: ${APP_NAME:-Felipe Almeida Developer}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-pt-BR}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-pt-BR,en,es}
+      API_PORT: '3333'
+      WEB_URL: ${WEB_URL:?configure WEB_URL com HTTPS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      API_BODY_LIMIT: ${API_BODY_LIMIT:-64kb}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?configure POSTGRES_USER}:${POSTGRES_PASSWORD:?configure POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?configure POSTGRES_DB}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:?configure REDIS_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:?configure RABBITMQ_USER}:${RABBITMQ_PASSWORD:?configure RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?configure JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?configure JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?configure ADMIN_EMAIL}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?configure ADMIN_INITIAL_PASSWORD}
+      PRIVACY_HASH_SECRET: ${PRIVACY_HASH_SECRET:?configure PRIVACY_HASH_SECRET}
+      PRIVACY_REQUEST_TOKEN_SECRET: ${PRIVACY_REQUEST_TOKEN_SECRET:?configure PRIVACY_REQUEST_TOKEN_SECRET}
+      NEWSLETTER_TOKEN_SECRET: ${NEWSLETTER_TOKEN_SECRET:?configure NEWSLETTER_TOKEN_SECRET}
+      PASSWORD_RESET_TOKEN_SECRET: ${PASSWORD_RESET_TOKEN_SECRET:?configure PASSWORD_RESET_TOKEN_SECRET}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      MEDIA_STORAGE_PROVIDER: ${MEDIA_STORAGE_PROVIDER:-s3}
+      MEDIA_MAX_IMAGE_BYTES: ${MEDIA_MAX_IMAGE_BYTES:-10485760}
+      MEDIA_MAX_PDF_BYTES: ${MEDIA_MAX_PDF_BYTES:-20971520}
+      MEDIA_MAX_IMAGE_PIXELS: ${MEDIA_MAX_IMAGE_PIXELS:-40000000}
+      MEDIA_RATE_LIMIT_PER_MINUTE: ${MEDIA_RATE_LIMIT_PER_MINUTE:-240}
+      MEDIA_PENDING_UPLOAD_GRACE_MINUTES: ${MEDIA_PENDING_UPLOAD_GRACE_MINUTES:-60}
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:?configure MEDIA_S3_BUCKET}
+      MEDIA_S3_REGION: ${MEDIA_S3_REGION:-us-east-1}
+      MEDIA_S3_ENDPOINT: ${MEDIA_S3_ENDPOINT:-}
+      MEDIA_S3_FORCE_PATH_STYLE: ${MEDIA_S3_FORCE_PATH_STYLE:-false}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-15000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-./logs}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      METRICS_TOKEN: ${METRICS_TOKEN:?configure METRICS_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3333}:3333"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3333/api/health/dependencies').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    image: felipe-almeida-developer-worker:${APP_VERSION:-latest}
+    build:
+      context: ../..
+      target: worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_NAME: ${APP_NAME:-Felipe Almeida Developer}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?configure POSTGRES_USER}:${POSTGRES_PASSWORD:?configure POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?configure POSTGRES_DB}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:?configure RABBITMQ_USER}:${RABBITMQ_PASSWORD:?configure RABBITMQ_PASSWORD}@rabbitmq:5672
+      WEB_URL: ${WEB_URL:?configure WEB_URL com HTTPS}
+      PRIVACY_HASH_SECRET: ${PRIVACY_HASH_SECRET:?configure PRIVACY_HASH_SECRET}
+      PRIVACY_REQUEST_TOKEN_SECRET: ${PRIVACY_REQUEST_TOKEN_SECRET:?configure PRIVACY_REQUEST_TOKEN_SECRET}
+      NEWSLETTER_TOKEN_SECRET: ${NEWSLETTER_TOKEN_SECRET:?configure NEWSLETTER_TOKEN_SECRET}
+      PASSWORD_RESET_TOKEN_SECRET: ${PASSWORD_RESET_TOKEN_SECRET:?configure PASSWORD_RESET_TOKEN_SECRET}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-sendgrid}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:?configure MAIL_FROM}
+      CONTACT_INBOX: ${CONTACT_INBOX:?configure CONTACT_INBOX}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_API_URL: ${WHATSAPP_API_URL:-https://graph.facebook.com/v20.0}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_TO_NUMBER: ${WHATSAPP_TO_NUMBER:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: ${LOG_DIR:-./logs}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      METRICS_TOKEN: ${METRICS_TOKEN:?configure METRICS_TOKEN}
+      WORKER_MANAGEMENT_HOST: 0.0.0.0
+      WORKER_MANAGEMENT_PORT: '9464'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9464/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  web:
+    image: felipe-almeida-developer-web:${APP_VERSION:-latest}
+    build:
+      context: ../..
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+      API_URL: http://api:3333
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?configure NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?configure NEXT_PUBLIC_SITE_URL}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+      NEXT_PUBLIC_ANALYTICS_SCRIPT_URL: ${NEXT_PUBLIC_ANALYTICS_SCRIPT_URL:-}
+      NEXT_PUBLIC_ANALYTICS_ALLOWED_ORIGINS: ${NEXT_PUBLIC_ANALYTICS_ALLOWED_ORIGINS:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/pt-BR').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:
+  clamdata:

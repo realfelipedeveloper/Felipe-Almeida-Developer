@@ -49,7 +49,12 @@ export function validateProductionSecurityConfig(): void {
   assertStrongSecret('JWT_ACCESS_SECRET');
   assertStrongSecret('JWT_REFRESH_SECRET');
 
-  for (const name of ['PRIVACY_REQUEST_TOKEN_SECRET', 'PRIVACY_HASH_SECRET'] as const) {
+  for (const name of [
+    'PRIVACY_REQUEST_TOKEN_SECRET',
+    'PRIVACY_HASH_SECRET',
+    'NEWSLETTER_TOKEN_SECRET',
+    'PASSWORD_RESET_TOKEN_SECRET',
+  ] as const) {
     const value = process.env[name]?.trim();
     if (!value || value.length < 32 || value.startsWith('gere-')) {
       throw new Error(`${name} precisa ser configurado em produção com pelo menos 32 caracteres.`);
@@ -61,10 +66,11 @@ export function validateProductionSecurityConfig(): void {
     throw new Error('WEB_URL precisa utilizar HTTPS em produção.');
   }
 
-  if (process.env.METRICS_ENABLED !== 'false' && !process.env.METRICS_TOKEN?.trim()) {
-    throw new Error(
-      'METRICS_TOKEN é obrigatório em produção quando METRICS_ENABLED não estiver desativado.',
-    );
+  if (process.env.METRICS_ENABLED !== 'false') {
+    const metricsToken = process.env.METRICS_TOKEN?.trim();
+    if (!metricsToken || metricsToken.length < 32 || metricsToken.startsWith('gere-')) {
+      throw new Error('METRICS_TOKEN precisa ter pelo menos 32 caracteres em produção.');
+    }
   }
 }
 

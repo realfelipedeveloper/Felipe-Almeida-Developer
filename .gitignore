@@ -62,6 +62,7 @@ adr/
 
 # Exceção: somente o README principal da raiz deve subir
 !/README.md
+!/.github/**/*.md
 
 
 # =========================================================
