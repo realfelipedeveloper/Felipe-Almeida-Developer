@@ -1,0 +1,33 @@
+name: Relatar defeito
+description: Registre uma regressão ou comportamento incorreto reproduzível.
+title: "fix: "
+labels: ["correcao"]
+body:
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: O que aconteceu e qual era o comportamento esperado?
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Passos para reproduzir
+      description: Inclua ambiente, rota e dados não sensíveis necessários.
+    validations:
+      required: true
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impacto
+      description: Informe usuários, segurança, dados ou fluxos afetados.
+    validations:
+      required: true
+  - type: checkboxes
+    id: seguranca
+    attributes:
+      label: Segurança
+      options:
+        - label: Removi tokens, senhas e dados pessoais das evidências.
+          required: true

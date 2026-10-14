@@ -1,14 +1,9 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import {
-  adminFetch,
-  AdminApiError,
-} from '@/lib/admin/admin-api';
-import {
-  AdminFeedbackModal,
-  AdminModal,
-} from './admin-modal';
+import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
+import { AdminFeedbackModal, AdminModal } from './admin-modal';
+import { AdminMediaPicker } from './admin-media-picker';
 
 type LocaleKey = 'pt-BR' | 'en' | 'es';
 
@@ -74,19 +69,16 @@ function blankTranslation(locale: LocaleKey): TranslationState {
 }
 
 export function AdminProfileForm() {
-  const [profile, setProfile] = useState<ProfileResponse | null>(
-    null,
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [translations, setTranslations] = useState<TranslationState[]>(
+    locales.map(blankTranslation),
   );
-  const [translations, setTranslations] = useState<
-    TranslationState[]
-  >(locales.map(blankTranslation));
-  const [socialLinks, setSocialLinks] = useState<
-    SocialLinkState[]
-  >([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinkState[]>([]);
   const [publicEmail, setPublicEmail] = useState('');
   const [publicLocation, setPublicLocation] = useState('');
-  const [availableForWork, setAvailableForWork] =
-    useState(false);
+  const [availableForWork, setAvailableForWork] = useState(false);
+  const [avatarMediaId, setAvatarMediaId] = useState<string | null>(null);
+  const [resumeMediaId, setResumeMediaId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -102,12 +94,11 @@ export function AdminProfileForm() {
         setPublicEmail(data.publicEmail ?? '');
         setPublicLocation(data.publicLocation ?? '');
         setAvailableForWork(data.availableForWork);
+        setAvatarMediaId(data.avatarMediaId);
+        setResumeMediaId(data.resumeMediaId);
         setTranslations(
           locales.map((locale) => {
-            const source = data.translations.find(
-              (item) =>
-                prismaToLocale[item.locale] === locale,
-            );
+            const source = data.translations.find((item) => prismaToLocale[item.locale] === locale);
 
             return source
               ? {
@@ -117,8 +108,7 @@ export function AdminProfileForm() {
                   summary: source.summary,
                   bio: source.bio,
                   seoTitle: source.seoTitle ?? '',
-                  seoDescription:
-                    source.seoDescription ?? '',
+                  seoDescription: source.seoDescription ?? '',
                 }
               : blankTranslation(locale);
           }),
@@ -139,17 +129,9 @@ export function AdminProfileForm() {
       );
   }, []);
 
-  function updateTranslation(
-    index: number,
-    field: keyof TranslationState,
-    value: string,
-  ) {
+  function updateTranslation(index: number, field: keyof TranslationState, value: string) {
     setTranslations((items) =>
-      items.map((item, current) =>
-        current === index
-          ? { ...item, [field]: value }
-          : item,
-      ),
+      items.map((item, current) => (current === index ? { ...item, [field]: value } : item)),
     );
   }
 
@@ -160,33 +142,26 @@ export function AdminProfileForm() {
     setSaving(true);
 
     try {
-      const updated =
-        await adminFetch<ProfileResponse>(
-          '/api/admin/content/profile',
-          {
-            method: 'PATCH',
-            body: JSON.stringify({
-              publicEmail: publicEmail || null,
-              publicLocation: publicLocation || null,
-              availableForWork,
-              avatarMediaId: profile.avatarMediaId,
-              resumeMediaId: profile.resumeMediaId,
-              translations: translations.map((item) => ({
-                ...item,
-                seoTitle: item.seoTitle || null,
-                seoDescription:
-                  item.seoDescription || null,
-              })),
-              socialLinks: socialLinks.map(
-                (item, index) => ({
-                  ...item,
-                  iconKey: item.iconKey || null,
-                  sortOrder: index,
-                }),
-              ),
-            }),
-          },
-        );
+      const updated = await adminFetch<ProfileResponse>('/api/admin/content/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          publicEmail: publicEmail || null,
+          publicLocation: publicLocation || null,
+          availableForWork,
+          avatarMediaId,
+          resumeMediaId,
+          translations: translations.map((item) => ({
+            ...item,
+            seoTitle: item.seoTitle || null,
+            seoDescription: item.seoDescription || null,
+          })),
+          socialLinks: socialLinks.map((item, index) => ({
+            ...item,
+            iconKey: item.iconKey || null,
+            sortOrder: index,
+          })),
+        }),
+      });
 
       setProfile(updated);
       setEditing(false);
@@ -200,9 +175,7 @@ export function AdminProfileForm() {
         variant: 'error',
         title: 'Não foi possível salvar o perfil.',
         message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Não foi possível salvar o perfil.',
+          cause instanceof AdminApiError ? cause.message : 'Não foi possível salvar o perfil.',
       });
     } finally {
       setSaving(false);
@@ -210,14 +183,10 @@ export function AdminProfileForm() {
   }
 
   if (!profile && !feedback) {
-    return (
-      <p className="text-slate-400">Carregando perfil…</p>
-    );
+    return <p className="text-slate-400">Carregando perfil…</p>;
   }
 
-  const pt =
-    translations.find((item) => item.locale === 'pt-BR') ??
-    translations[0];
+  const pt = translations.find((item) => item.locale === 'pt-BR') ?? translations[0];
 
   return (
     <>
@@ -225,12 +194,8 @@ export function AdminProfileForm() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">ADMIN / PERFIL</p>
-            <h1 className="mt-3 text-4xl font-black tracking-tight">
-              Perfil público
-            </h1>
-            <p className="mt-2 text-slate-400">
-              Conteúdo exibido na Home e na página Sobre.
-            </p>
+            <h1 className="mt-3 text-4xl font-black tracking-tight">Perfil público</h1>
+            <p className="mt-2 text-slate-400">Conteúdo exibido na Home e na página Sobre.</p>
           </div>
 
           <button
@@ -246,32 +211,22 @@ export function AdminProfileForm() {
         {profile ? (
           <section className="site-panel mt-8 p-6">
             <p className="eyebrow">VISÃO GERAL</p>
-            <h2 className="mt-3 text-2xl font-bold">
-              {pt?.fullName || 'Perfil sem nome'}
-            </h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              {pt?.headline || 'Headline não informada'}
-            </p>
+            <h2 className="mt-3 text-2xl font-bold">{pt?.fullName || 'Perfil sem nome'}</h2>
+            <p className="mt-2 text-sm text-zinc-400">{pt?.headline || 'Headline não informada'}</p>
 
             <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
               <div>
                 <dt className="text-zinc-500">E-mail público</dt>
-                <dd className="mt-1 font-semibold">
-                  {publicEmail || 'Não informado'}
-                </dd>
+                <dd className="mt-1 font-semibold">{publicEmail || 'Não informado'}</dd>
               </div>
               <div>
                 <dt className="text-zinc-500">Localização</dt>
-                <dd className="mt-1 font-semibold">
-                  {publicLocation || 'Não informada'}
-                </dd>
+                <dd className="mt-1 font-semibold">{publicLocation || 'Não informada'}</dd>
               </div>
               <div>
                 <dt className="text-zinc-500">Disponibilidade</dt>
                 <dd className="mt-1 font-semibold">
-                  {availableForWork
-                    ? 'Disponível'
-                    : 'Indisponível'}
+                  {availableForWork ? 'Disponível' : 'Indisponível'}
                 </dd>
               </div>
             </dl>
@@ -298,9 +253,7 @@ export function AdminProfileForm() {
               <input
                 type="email"
                 value={publicEmail}
-                onChange={(event) =>
-                  setPublicEmail(event.target.value)
-                }
+                onChange={(event) => setPublicEmail(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
               />
             </label>
@@ -309,9 +262,7 @@ export function AdminProfileForm() {
               Localização pública
               <input
                 value={publicLocation}
-                onChange={(event) =>
-                  setPublicLocation(event.target.value)
-                }
+                onChange={(event) => setPublicLocation(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
               />
             </label>
@@ -320,14 +271,24 @@ export function AdminProfileForm() {
               <input
                 type="checkbox"
                 checked={availableForWork}
-                onChange={(event) =>
-                  setAvailableForWork(
-                    event.target.checked,
-                  )
-                }
+                onChange={(event) => setAvailableForWork(event.target.checked)}
               />
               Disponível para oportunidades
             </label>
+
+            <AdminMediaPicker
+              label="Avatar"
+              kind="IMAGE"
+              value={avatarMediaId}
+              onChange={setAvatarMediaId}
+            />
+
+            <AdminMediaPicker
+              label="Currículo"
+              kind="PDF"
+              value={resumeMediaId}
+              onChange={setResumeMediaId}
+            />
           </section>
 
           {translations.map((translation, index) => (
@@ -335,72 +296,38 @@ export function AdminProfileForm() {
               key={translation.locale}
               className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
             >
-              <h3 className="text-xl font-bold">
-                Conteúdo · {translation.locale}
-              </h3>
+              <h3 className="text-xl font-bold">Conteúdo · {translation.locale}</h3>
 
               <div className="mt-5 grid gap-5 md:grid-cols-2">
                 <Field
                   label="Nome"
                   value={translation.fullName}
-                  onChange={(value) =>
-                    updateTranslation(
-                      index,
-                      'fullName',
-                      value,
-                    )
-                  }
+                  onChange={(value) => updateTranslation(index, 'fullName', value)}
                 />
                 <Field
                   label="Headline"
                   value={translation.headline}
-                  onChange={(value) =>
-                    updateTranslation(
-                      index,
-                      'headline',
-                      value,
-                    )
-                  }
+                  onChange={(value) => updateTranslation(index, 'headline', value)}
                 />
                 <Area
                   label="Resumo"
                   value={translation.summary}
-                  onChange={(value) =>
-                    updateTranslation(
-                      index,
-                      'summary',
-                      value,
-                    )
-                  }
+                  onChange={(value) => updateTranslation(index, 'summary', value)}
                 />
                 <Area
                   label="Biografia"
                   value={translation.bio}
-                  onChange={(value) =>
-                    updateTranslation(index, 'bio', value)
-                  }
+                  onChange={(value) => updateTranslation(index, 'bio', value)}
                 />
                 <Field
                   label="SEO title"
                   value={translation.seoTitle}
-                  onChange={(value) =>
-                    updateTranslation(
-                      index,
-                      'seoTitle',
-                      value,
-                    )
-                  }
+                  onChange={(value) => updateTranslation(index, 'seoTitle', value)}
                 />
                 <Field
                   label="SEO description"
                   value={translation.seoDescription}
-                  onChange={(value) =>
-                    updateTranslation(
-                      index,
-                      'seoDescription',
-                      value,
-                    )
-                  }
+                  onChange={(value) => updateTranslation(index, 'seoDescription', value)}
                 />
               </div>
             </section>
@@ -408,9 +335,7 @@ export function AdminProfileForm() {
 
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="text-xl font-bold">
-                Links sociais
-              </h3>
+              <h3 className="text-xl font-bold">Links sociais</h3>
               <button
                 type="button"
                 onClick={() =>
@@ -447,8 +372,7 @@ export function AdminProfileForm() {
                           current === index
                             ? {
                                 ...item,
-                                label:
-                                  event.target.value,
+                                label: event.target.value,
                               }
                             : item,
                         ),
@@ -486,8 +410,7 @@ export function AdminProfileForm() {
                           current === index
                             ? {
                                 ...item,
-                                iconKey:
-                                  event.target.value,
+                                iconKey: event.target.value,
                               }
                             : item,
                         ),
@@ -499,12 +422,7 @@ export function AdminProfileForm() {
                   <button
                     type="button"
                     onClick={() =>
-                      setSocialLinks((items) =>
-                        items.filter(
-                          (_, current) =>
-                            current !== index,
-                        ),
-                      )
+                      setSocialLinks((items) => items.filter((_, current) => current !== index))
                     }
                     className="text-sm text-red-300"
                   >
@@ -560,9 +478,7 @@ function Field({
       {label}
       <input
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         required
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
       />
@@ -584,9 +500,7 @@ function Area({
       {label}
       <textarea
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         required
         rows={6}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"

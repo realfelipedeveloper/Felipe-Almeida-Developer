@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 
 type PublicLocale = 'pt-BR' | 'en' | 'es';
 
@@ -14,8 +10,7 @@ const messages = {
   },
   en: {
     invalid: 'The anti-bot verification could not be validated.',
-    unavailable:
-      'The anti-bot verification is temporarily unavailable. Please try again shortly.',
+    unavailable: 'The anti-bot verification is temporarily unavailable. Please try again shortly.',
   },
   es: {
     invalid: 'No se pudo validar la verificación anti-bot.',
@@ -39,9 +34,7 @@ export class TurnstileService {
     if (!secret || secret.startsWith('TODO')) return;
 
     const locale: PublicLocale =
-      localeValue === 'en' || localeValue === 'es'
-        ? localeValue
-        : 'pt-BR';
+      localeValue === 'en' || localeValue === 'es' ? localeValue : 'pt-BR';
 
     if (!token?.trim()) {
       throw new BadRequestException(messages[locale].invalid);
@@ -57,28 +50,21 @@ export class TurnstileService {
     let response: Response;
 
     try {
-      response = await fetch(
-        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Accept: 'application/json',
-          },
-          body,
-          signal: AbortSignal.timeout(5_000),
+      response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
         },
-      );
+        body,
+        signal: AbortSignal.timeout(5_000),
+      });
     } catch {
-      throw new ServiceUnavailableException(
-        messages[locale].unavailable,
-      );
+      throw new ServiceUnavailableException(messages[locale].unavailable);
     }
 
     if (!response.ok) {
-      throw new ServiceUnavailableException(
-        messages[locale].unavailable,
-      );
+      throw new ServiceUnavailableException(messages[locale].unavailable);
     }
 
     const result = (await response.json()) as TurnstileResponse;

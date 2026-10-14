@@ -75,7 +75,8 @@
       }
     },
     "galleryTitle": "Beyond code",
-    "galleryText": "A few personal records that give the portfolio its own identity."
+    "galleryText": "A few personal records that give the portfolio its own identity.",
+    "resume": "Download résumé"
   },
   "projects": {
     "eyebrow": "Projects",
@@ -157,7 +158,7 @@
   "privacy": {
     "eyebrow": "Privacy",
     "title": "Privacy Policy",
-    "intro": "This page describes the portfolio's privacy baseline. Collection flows will be updated when contact, newsletter and analytics are enabled.",
+    "intro": "This page describes how the portfolio processes personal data for contact, newsletter, security and optional analytics.",
     "sections": [
       {
         "title": "Data collected",
@@ -169,13 +170,39 @@
       },
       {
         "title": "Rights",
-        "text": "Data subjects may request access, correction, export or deletion when applicable. Automated flows will be connected in the corresponding backend stage."
+        "text": "Data subjects can request data export or deletion using the form below. Identity is confirmed through a one-time link sent by email."
       },
       {
         "title": "Retention and security",
         "text": "Data will be retained only for the period required by the stated purposes and protected with technical and operational controls appropriate to the risk."
       }
-    ]
+    ],
+    "request": {
+      "title": "Exercise your rights",
+      "description": "Enter your email and choose an operation. To protect your data, we will send a verification link valid for 30 minutes. The response never reveals whether the address is registered.",
+      "email": "Email",
+      "type": "What would you like to do?",
+      "exportOption": "Export my data",
+      "deleteOption": "Delete my data",
+      "deleteWarning": "Deletion removes linked subscriptions and consent records and anonymizes contact messages. Once confirmed, it cannot be undone.",
+      "submit": "Send verification link",
+      "sending": "Sending…",
+      "successEyebrow": "REQUEST RECEIVED",
+      "successTitle": "Check your email.",
+      "successFallback": "If the address is valid, we will send a verification link.",
+      "errorFallback": "We could not register the request. Please try again."
+    },
+    "verify": {
+      "metadataTitle": "Privacy verification",
+      "processing": "Verifying your request…",
+      "exportReady": "Your data is ready.",
+      "deletionComplete": "Deletion request completed.",
+      "download": "Download JSON file",
+      "invalid": "This link is invalid, expired or has already been used.",
+      "confirmTitle": "Confirm permanent deletion.",
+      "confirmDescription": "This action anonymizes messages and removes subscriptions and data linked to the verified email. It cannot be undone.",
+      "confirmAction": "Delete permanently"
+    }
   },
   "cookies": {
     "eyebrow": "Privacy",
@@ -192,7 +219,7 @@
       },
       {
         "title": "Change preference",
-        "text": "You can clear site data in your browser to reset your choices. A full preference center will be connected with the analytics layer."
+        "text": "Use the “Cookie preferences” button in the footer at any time to accept or revoke analytics."
       }
     ]
   },
@@ -215,6 +242,11 @@
     "page": "Page {page} of {total}",
     "backHome": "Back home",
     "notFound": "Content not found.",
+    "notFoundDescription": "The address may have changed or the content is not published in this language yet.",
+    "errorLabel": "Error",
+    "errorTitle": "This page could not be loaded.",
+    "errorDescription": "Try again. If the problem persists, the service may be temporarily unavailable.",
+    "retry": "Try again",
     "apiUnavailable": "Content temporarily unavailable. Please try again shortly."
   },
   "footer": {
@@ -222,6 +254,7 @@
     "rights": "All rights reserved.",
     "privacy": "Privacy",
     "cookies": "Cookies",
+    "cookiePreferences": "Cookie preferences",
     "rss": "RSS"
   }
 }

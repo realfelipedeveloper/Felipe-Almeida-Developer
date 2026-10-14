@@ -38,18 +38,11 @@ export function SuccessModal({
     document.body.style.overflow = 'hidden';
     closeButtonRef.current?.focus();
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
       previousActiveElement?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -57,9 +50,6 @@ export function SuccessModal({
     <div
       className="fixed inset-0 z-[100] grid place-items-center bg-black/70 px-5 py-8 backdrop-blur-sm"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
     >
       <section
         role="dialog"

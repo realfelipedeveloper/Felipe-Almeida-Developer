@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { RequestWithContext } from '../../../shared/presentation/request-context';
 import { EngagementService } from '../application/engagement.service';
@@ -28,21 +22,10 @@ export class EngagementController {
   @ApiOperation({
     summary: 'Recebe uma mensagem do formulário público de contato',
   })
-  async contact(
-    @Body() body: ContactMessageDto,
-    @Req() request: RequestWithContext,
-  ) {
-    await this.turnstile.verify(
-      body.turnstileToken,
-      request.ip,
-      body.locale,
-    );
+  async contact(@Body() body: ContactMessageDto, @Req() request: RequestWithContext) {
+    await this.turnstile.verify(body.turnstileToken, request.ip, body.locale);
 
-    return this.service.submitContact(
-      body,
-      request.ip,
-      request.correlationId,
-    );
+    return this.service.submitContact(body, request.ip, request.correlationId);
   }
 
   @Post('newsletter/subscribe')
@@ -50,21 +33,10 @@ export class EngagementController {
   @ApiOperation({
     summary: 'Solicita inscrição na newsletter com double opt-in',
   })
-  async subscribe(
-    @Body() body: NewsletterSubscribeDto,
-    @Req() request: RequestWithContext,
-  ) {
-    await this.turnstile.verify(
-      body.turnstileToken,
-      request.ip,
-      body.locale,
-    );
+  async subscribe(@Body() body: NewsletterSubscribeDto, @Req() request: RequestWithContext) {
+    await this.turnstile.verify(body.turnstileToken, request.ip, body.locale);
 
-    return this.service.subscribe(
-      body,
-      request.ip,
-      request.correlationId,
-    );
+    return this.service.subscribe(body, request.ip, request.correlationId);
   }
 
   @Post('newsletter/confirm')

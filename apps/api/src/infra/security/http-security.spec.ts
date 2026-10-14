@@ -52,9 +52,7 @@ describe('hardening HTTP da API', () => {
     delete process.env.JWT_ACCESS_SECRET;
     delete process.env.JWT_REFRESH_SECRET;
 
-    expect(() => validateProductionSecurityConfig()).toThrow(
-      'JWT_ACCESS_SECRET',
-    );
+    expect(() => validateProductionSecurityConfig()).toThrow('JWT_ACCESS_SECRET');
   });
 
   it('aceita configuração mínima segura de produção', () => {
@@ -62,10 +60,28 @@ describe('hardening HTTP da API', () => {
     process.env.WEB_URL = 'https://portfolio.example.com';
     process.env.JWT_ACCESS_SECRET = 'a'.repeat(64);
     process.env.JWT_REFRESH_SECRET = 'b'.repeat(64);
+    process.env.PRIVACY_REQUEST_TOKEN_SECRET = 'c'.repeat(64);
+    process.env.PRIVACY_HASH_SECRET = 'd'.repeat(64);
+    process.env.NEWSLETTER_TOKEN_SECRET = 'e'.repeat(64);
+    process.env.PASSWORD_RESET_TOKEN_SECRET = 'f'.repeat(64);
     process.env.METRICS_ENABLED = 'true';
-    process.env.METRICS_TOKEN = 'token-de-metricas-forte';
+    process.env.METRICS_TOKEN = 'm'.repeat(64);
 
     expect(() => validateProductionSecurityConfig()).not.toThrow();
+  });
+
+  it('exige segredos dedicados para links públicos sensíveis', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.WEB_URL = 'https://portfolio.example.com';
+    process.env.JWT_ACCESS_SECRET = 'a'.repeat(64);
+    process.env.JWT_REFRESH_SECRET = 'b'.repeat(64);
+    process.env.PRIVACY_REQUEST_TOKEN_SECRET = 'c'.repeat(64);
+    process.env.PRIVACY_HASH_SECRET = 'd'.repeat(64);
+    process.env.PASSWORD_RESET_TOKEN_SECRET = 'f'.repeat(64);
+    process.env.METRICS_ENABLED = 'false';
+    delete process.env.NEWSLETTER_TOKEN_SECRET;
+
+    expect(() => validateProductionSecurityConfig()).toThrow('NEWSLETTER_TOKEN_SECRET');
   });
 
   it('aplica headers de segurança e impede cache no admin', () => {
@@ -73,21 +89,11 @@ describe('hardening HTTP da API', () => {
     const setHeader = jest.fn();
     const next = jest.fn();
 
-    httpSecurityHeaders(
-      { path: '/api/admin/auth/me' } as never,
-      { setHeader } as never,
-      next,
-    );
+    httpSecurityHeaders({ path: '/api/admin/auth/me' } as never, { setHeader } as never, next);
 
-    expect(setHeader).toHaveBeenCalledWith(
-      'X-Content-Type-Options',
-      'nosniff',
-    );
+    expect(setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
     expect(setHeader).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
-    expect(setHeader).toHaveBeenCalledWith(
-      'Cache-Control',
-      expect.stringContaining('no-store'),
-    );
+    expect(setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));
     expect(setHeader).toHaveBeenCalledWith(
       'Content-Security-Policy',
       expect.stringContaining("default-src 'none'"),

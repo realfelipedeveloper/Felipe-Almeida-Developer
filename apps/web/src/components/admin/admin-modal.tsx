@@ -24,8 +24,6 @@ export function AdminModal({
   description,
   size = 'md',
   children,
-  closeOnBackdrop = true,
-  closeOnEscape = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,17 +32,20 @@ export function AdminModal({
   description?: string;
   size?: ModalSize;
   children: ReactNode;
+  /**
+   * Mantido apenas por compatibilidade com chamadores existentes.
+   * A política global de modais NÃO permite fechamento por clique no backdrop.
+   */
   closeOnBackdrop?: boolean;
+  /**
+   * Mantido apenas por compatibilidade com chamadores existentes.
+   * A política global de modais NÃO permite fechamento pela tecla Escape.
+   */
   closeOnEscape?: boolean;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
   const titleId = useId();
   const descriptionId = useId();
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,20 +56,11 @@ export function AdminModal({
     document.body.style.overflow = 'hidden';
     closeButtonRef.current?.focus();
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && closeOnEscape) {
-        onCloseRef.current();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
       previousActiveElement?.focus();
     };
-  }, [closeOnEscape, open]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -76,14 +68,6 @@ export function AdminModal({
     <div
       className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
       role="presentation"
-      onMouseDown={(event) => {
-        if (
-          closeOnBackdrop &&
-          event.target === event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
     >
       <section
         role="dialog"
@@ -229,8 +213,6 @@ export function AdminConfirmModal({
       eyebrow={danger ? 'CONFIRMAÇÃO NECESSÁRIA' : 'CONFIRMAR AÇÃO'}
       title={title}
       size="sm"
-      closeOnBackdrop={!busy}
-      closeOnEscape={!busy}
     >
       <p className="text-sm leading-7 text-zinc-300">{message}</p>
 

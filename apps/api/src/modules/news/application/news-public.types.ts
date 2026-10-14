@@ -21,7 +21,10 @@ export interface NewsListFilters {
 
 export interface NewsPublicReadRepository {
   listPublished(filters: NewsListFilters): Promise<{ data: PublicNewsListItem[]; total: number }>;
-  findPublishedBySlug(locale: NewsListFilters['locale'], slug: string): Promise<PublicNewsDetail | null>;
+  findPublishedBySlug(
+    locale: NewsListFilters['locale'],
+    slug: string,
+  ): Promise<PublicNewsDetail | null>;
 }
 
 export const NEWS_PUBLIC_READ_REPOSITORY = Symbol('NEWS_PUBLIC_READ_REPOSITORY');

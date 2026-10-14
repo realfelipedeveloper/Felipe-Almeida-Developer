@@ -7,6 +7,16 @@ const localeMap: Record<Locale, string> = {
   es: 'es-ES',
 };
 
+export function slugify(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function cleanSeedText(value: string | null | undefined, fallback: string) {
   if (!value) return fallback;
 
@@ -60,4 +70,10 @@ export function safeExternalUrl(value: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+export function mediaUrl(id: string | null | undefined) {
+  if (!id) return null;
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+  return `${apiBase}/api/media/${encodeURIComponent(id)}`;
 }

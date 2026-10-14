@@ -1,13 +1,6 @@
 import 'reflect-metadata';
 
-import {
-  Body,
-  Controller,
-  Get,
-  INestApplication,
-  Post,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Body, Controller, Get, INestApplication, Post, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 import { httpSecurityHeaders } from '../src/infra/security/http-security';
@@ -69,14 +62,10 @@ describe('hardening HTTP (e2e sem infraestrutura externa)', () => {
     const response = await fetch(`${baseUrl}/api/admin/probe`);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('x-content-type-options')).toBe(
-      'nosniff',
-    );
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('x-frame-options')).toBe('DENY');
     expect(response.headers.get('cache-control')).toContain('no-store');
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get('content-security-policy')).toContain("default-src 'none'");
   });
 
   it('rejeita propriedades não permitidas pelo ValidationPipe', async () => {

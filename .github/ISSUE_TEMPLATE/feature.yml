@@ -1,0 +1,24 @@
+name: Propor melhoria
+description: Registre uma necessidade de produto ou engenharia com resultado mensurável.
+title: "feat: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema
+      description: Qual necessidade real deve ser resolvida?
+    validations:
+      required: true
+  - type: textarea
+    id: resultado
+    attributes:
+      label: Resultado esperado
+      description: Descreva comportamento e critérios de aceite verificáveis.
+    validations:
+      required: true
+  - type: textarea
+    id: impactos
+    attributes:
+      label: Impactos técnicos
+      description: Considere API, dados, i18n, segurança, LGPD, filas e observabilidade.

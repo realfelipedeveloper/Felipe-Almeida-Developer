@@ -75,7 +75,8 @@
       }
     },
     "galleryTitle": "Além do código",
-    "galleryText": "Alguns registros que ajudam a deixar o portfólio com identidade própria."
+    "galleryText": "Alguns registros que ajudam a deixar o portfólio com identidade própria.",
+    "resume": "Baixar currículo"
   },
   "projects": {
     "eyebrow": "Projetos",
@@ -157,7 +158,7 @@
   "privacy": {
     "eyebrow": "LGPD",
     "title": "Política de Privacidade",
-    "intro": "Esta página descreve a base de privacidade do portfólio. Os fluxos de coleta serão atualizados quando contato, newsletter e analytics forem ativados.",
+    "intro": "Esta página descreve como o portfólio trata dados pessoais em contato, newsletter, segurança e analytics opcional.",
     "sections": [
       {
         "title": "Dados coletados",
@@ -169,13 +170,39 @@
       },
       {
         "title": "Direitos",
-        "text": "O titular poderá solicitar acesso, correção, exportação ou exclusão dos dados conforme aplicável. Os fluxos automatizados serão conectados na etapa correspondente do backend."
+        "text": "O titular pode solicitar exportação ou exclusão dos dados pelo formulário abaixo. A identidade é confirmada por um link de uso único enviado por e-mail."
       },
       {
         "title": "Retenção e segurança",
         "text": "Dados serão retidos apenas pelo período necessário às finalidades declaradas e protegidos com controles técnicos e operacionais compatíveis com o risco."
       }
-    ]
+    ],
+    "request": {
+      "title": "Exerça seus direitos",
+      "description": "Informe seu e-mail e escolha a operação. Para proteger seus dados, enviaremos um link de verificação válido por 30 minutos. A resposta não revela se o endereço está cadastrado.",
+      "email": "E-mail",
+      "type": "O que deseja fazer?",
+      "exportOption": "Exportar meus dados",
+      "deleteOption": "Excluir meus dados",
+      "deleteWarning": "A exclusão remove inscrições e consentimentos vinculados e anonimiza mensagens de contato. Depois de confirmada, a operação não pode ser desfeita.",
+      "submit": "Enviar link de verificação",
+      "sending": "Enviando…",
+      "successEyebrow": "SOLICITAÇÃO RECEBIDA",
+      "successTitle": "Confira seu e-mail.",
+      "successFallback": "Se o endereço for válido, enviaremos um link de verificação.",
+      "errorFallback": "Não foi possível registrar a solicitação. Tente novamente."
+    },
+    "verify": {
+      "metadataTitle": "Verificação de privacidade",
+      "processing": "Verificando sua solicitação…",
+      "exportReady": "Seus dados estão prontos.",
+      "deletionComplete": "Solicitação de exclusão concluída.",
+      "download": "Baixar arquivo JSON",
+      "invalid": "Este link é inválido, expirou ou já foi utilizado.",
+      "confirmTitle": "Confirme a exclusão definitiva.",
+      "confirmDescription": "Esta ação anonimiza mensagens e remove inscrições e dados vinculados ao e-mail verificado. Ela não pode ser desfeita.",
+      "confirmAction": "Excluir definitivamente"
+    }
   },
   "cookies": {
     "eyebrow": "LGPD",
@@ -192,7 +219,7 @@
       },
       {
         "title": "Alterar preferência",
-        "text": "Você pode limpar os dados do site no navegador para redefinir suas escolhas. Um centro de preferências completo será conectado junto da camada de analytics."
+        "text": "Use o botão “Preferências de cookies” no rodapé a qualquer momento para aceitar ou revogar analytics."
       }
     ]
   },
@@ -215,6 +242,11 @@
     "page": "Página {page} de {total}",
     "backHome": "Voltar ao início",
     "notFound": "Conteúdo não encontrado.",
+    "notFoundDescription": "O endereço pode ter mudado ou o conteúdo ainda não está publicado neste idioma.",
+    "errorLabel": "Erro",
+    "errorTitle": "Não foi possível carregar esta página.",
+    "errorDescription": "Tente novamente. Se o problema persistir, o serviço pode estar temporariamente indisponível.",
+    "retry": "Tentar novamente",
     "apiUnavailable": "Conteúdo temporariamente indisponível. Tente novamente em instantes."
   },
   "footer": {
@@ -222,6 +254,7 @@
     "rights": "Todos os direitos reservados.",
     "privacy": "Privacidade",
     "cookies": "Cookies",
+    "cookiePreferences": "Preferências de cookies",
     "rss": "RSS"
   }
 }

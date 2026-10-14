@@ -14,7 +14,9 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     });
 
     this.client.on('error', (error) => {
-      this.logger.child('app', { dependencia: 'redis' }).warn({ erro: error.message }, 'Falha de comunicação com Redis');
+      this.logger
+        .child('app', { dependencia: 'redis' })
+        .warn({ erro: error.message }, 'Falha de comunicação com Redis');
     });
   }
 
@@ -26,10 +28,12 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
       await this.client.ping();
       this.logger.child('app', { dependencia: 'redis' }).info('Redis conectado');
     } catch (error) {
-      this.logger.child('app', { dependencia: 'redis' }).warn(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Redis indisponível durante a inicialização; a API continuará sem cache até a recuperação',
-      );
+      this.logger
+        .child('app', { dependencia: 'redis' })
+        .warn(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Redis indisponível durante a inicialização; a API continuará sem cache até a recuperação',
+        );
     }
   }
 

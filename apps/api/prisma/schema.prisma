@@ -80,6 +80,11 @@ enum ConsentCategory {
   ANALYTICS
 }
 
+enum ConsentSubjectKind {
+  ANONYMOUS_BROWSER
+  EMAIL
+}
+
 model Profile {
   id               String               @id @default(uuid()) @db.Uuid
   publicEmail      String?              @map("public_email") @db.VarChar(320)
@@ -276,6 +281,7 @@ model Article {
   readingTimeMinutes Int?             @map("reading_time_minutes")
   scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
+  publishedEventAt  DateTime?         @map("published_event_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -286,6 +292,7 @@ model Article {
 
   @@index([publicationStatus, publishedAt])
   @@index([scheduledAt])
+  @@index([publicationStatus, publishedEventAt, scheduledAt, publishedAt])
   @@map("articles")
 }
 
@@ -326,6 +333,7 @@ model News {
   id                String            @id @default(uuid()) @db.Uuid
   publicationStatus PublicationStatus @default(DRAFT) @map("publication_status")
   coverMediaId      String?           @map("cover_media_id") @db.Uuid
+  scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -335,6 +343,8 @@ model News {
   tags          NewsTag[]
 
   @@index([publicationStatus, publishedAt])
+  @@index([scheduledAt])
+  @@index([publicationStatus, scheduledAt, publishedAt])
   @@map("news")
 }
 
@@ -429,12 +439,15 @@ model NewsletterIssue {
   publicationStatus PublicationStatus @default(DRAFT) @map("publication_status")
   scheduledAt       DateTime?         @map("scheduled_at") @db.Timestamptz(3)
   publishedAt       DateTime?         @map("published_at") @db.Timestamptz(3)
+  publishedEventAt  DateTime?         @map("published_event_at") @db.Timestamptz(3)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   translations NewsletterIssueTranslation[]
 
   @@index([publicationStatus, publishedAt])
+  @@index([publicationStatus, publishedEventAt, scheduledAt, publishedAt])
+  @@index([publicationStatus, scheduledAt, publishedAt])
   @@map("newsletter_issues")
 }
 
@@ -508,6 +521,8 @@ model MediaAsset {
   createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt        DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  storageReadyAt   DateTime?            @map("storage_ready_at") @db.Timestamptz(3)
+  storageDeletedAt DateTime?            @map("storage_deleted_at") @db.Timestamptz(3)
 
   createdByAdmin AdminUser?         @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
   translations  MediaTranslation[]
@@ -519,6 +534,7 @@ model MediaAsset {
   newsCovers     News[]             @relation("NewsCover")
 
   @@index([kind, deletedAt])
+  @@index([storageReadyAt, deletedAt, storageDeletedAt])
   @@index([sha256])
   @@map("media_assets")
 }
@@ -560,6 +576,7 @@ model ConsentRecord {
   id            String          @id @default(uuid()) @db.Uuid
   subjectKey    String          @map("subject_key") @db.VarChar(128)
   category      ConsentCategory
+  subjectKind   ConsentSubjectKind @default(ANONYMOUS_BROWSER) @map("subject_kind")
   granted       Boolean
   policyVersion String          @map("policy_version") @db.VarChar(40)
   locale        Locale          @default(PT_BR)
@@ -576,6 +593,7 @@ model PrivacyRequest {
   email                 String               @db.VarChar(320)
   type                  PrivacyRequestType
   status                PrivacyRequestStatus @default(PENDING)
+  locale                Locale               @default(PT_BR)
   verificationTokenHash String?              @unique @map("verification_token_hash") @db.VarChar(128)
   verificationExpiresAt DateTime?            @map("verification_expires_at") @db.Timestamptz(3)
   verifiedAt            DateTime?            @map("verified_at") @db.Timestamptz(3)
@@ -586,6 +604,13 @@ model PrivacyRequest {
 
   @@index([email, status])
   @@map("privacy_requests")
+}
+
+model PrivacyErasureTombstone {
+  emailKey String   @id @map("email_key") @db.VarChar(128)
+  erasedAt DateTime @default(now()) @map("erased_at") @db.Timestamptz(3)
+
+  @@map("privacy_erasure_tombstones")
 }
 
 model OutboxEvent {

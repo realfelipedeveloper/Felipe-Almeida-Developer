@@ -11,6 +11,19 @@ interface EmailMessage {
 }
 
 type SmtpSocket = net.Socket | tls.TLSSocket;
+type SmtpWaiter = {
+  resolve: (value: string) => void;
+  reject: (error: Error) => void;
+};
+
+const DEFAULT_EMAIL_DELIVERY_TIMEOUT_MS = 8_000;
+
+function emailDeliveryTimeoutMs(): number {
+  const testValue = Number(process.env.EMAIL_DELIVERY_TIMEOUT_MS);
+  return process.env.NODE_ENV === 'test' && Number.isInteger(testValue) && testValue >= 50
+    ? testValue
+    : DEFAULT_EMAIL_DELIVERY_TIMEOUT_MS;
+}
 
 function mailFromAddress(): string {
   const value = process.env.MAIL_FROM?.trim() || 'Felipe Almeida Developer <no-reply@localhost>';
@@ -28,7 +41,7 @@ function dotStuff(value: string): string {
 class SmtpClient {
   private socket: SmtpSocket | null = null;
   private buffered = '';
-  private waiters: Array<(value: string) => void> = [];
+  private waiters: SmtpWaiter[] = [];
 
   async connect(): Promise<void> {
     const host = process.env.SMTP_HOST ?? 'localhost';
@@ -42,7 +55,8 @@ class SmtpClient {
     this.socket.setEncoding('utf8');
     this.socket.on('data', (chunk: string) => this.onData(chunk));
     this.socket.on('error', (error) => {
-      logger.error({ categoria: 'email', erro: error.message }, 'Falha no socket SMTP');
+      logger.error({ categoria: 'email', codigo: error.name }, 'Falha no socket SMTP');
+      this.rejectWaiters(new Error('EMAIL_SMTP_CONNECTION_FAILED'));
     });
 
     await this.expect([220]);
@@ -92,13 +106,21 @@ class SmtpClient {
   }
 
   async close(): Promise<void> {
-    if (!this.socket) return;
+    const socket = this.socket;
+    if (!socket) return;
     try {
       await this.command('QUIT', [221]);
     } catch {
       // O servidor pode encerrar a conexão imediatamente após QUIT.
+    } finally {
+      socket.end();
+      if (this.socket === socket) this.socket = null;
     }
-    this.socket.end();
+  }
+
+  abort(): void {
+    this.rejectWaiters(new Error('EMAIL_SMTP_TIMEOUT'));
+    this.socket?.destroy();
     this.socket = null;
   }
 
@@ -109,13 +131,13 @@ class SmtpClient {
   }
 
   private async expect(expected: number[]): Promise<string> {
-    const response = await new Promise<string>((resolve) => {
-      this.waiters.push(resolve);
+    const response = await new Promise<string>((resolve, reject) => {
+      this.waiters.push({ resolve, reject });
       this.flush();
     });
     const code = Number(response.slice(0, 3));
     if (!expected.includes(code)) {
-      throw new Error(`SMTP respondeu ${code}: ${response.trim()}`);
+      throw new Error(`EMAIL_SMTP_REJECTED_${Number.isFinite(code) ? code : 'UNKNOWN'}`);
     }
     return response;
   }
@@ -142,7 +164,11 @@ class SmtpClient {
     const response = lines.slice(0, end + 1).join('\r\n');
     this.buffered = lines.slice(end + 1).join('\r\n');
     this.waiters.shift();
-    waiter(response);
+    waiter.resolve(response);
+  }
+
+  private rejectWaiters(error: Error): void {
+    for (const waiter of this.waiters.splice(0)) waiter.reject(error);
   }
 }
 
@@ -155,12 +181,32 @@ export class EmailSender {
       return;
     }
 
+    await this.sendWithSmtp(message);
+  }
+
+  private async sendWithSmtp(message: EmailMessage): Promise<void> {
     const client = new SmtpClient();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await client.connect();
-      await client.send(message);
+      await Promise.race([
+        (async () => {
+          try {
+            await client.connect();
+            await client.send(message);
+          } finally {
+            await client.close();
+          }
+        })(),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            client.abort();
+            reject(new Error('EMAIL_SMTP_TIMEOUT'));
+          }, emailDeliveryTimeoutMs());
+        }),
+      ]);
     } finally {
-      await client.close();
+      if (timeout) clearTimeout(timeout);
+      client.abort();
     }
   }
 
@@ -169,26 +215,35 @@ export class EmailSender {
     if (!apiKey) throw new Error('SENDGRID_API_KEY não configurada.');
 
     const from = mailFromAddress();
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: message.to }] }],
-        from: { email: from },
-        subject: message.subject,
-        content: [
-          { type: 'text/plain', value: message.text },
-          { type: 'text/html', value: message.html },
-        ],
-      }),
-    });
+    const signal = AbortSignal.timeout(emailDeliveryTimeoutMs());
+    let response: Response;
+    try {
+      response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: message.to }] }],
+          from: { email: from },
+          subject: message.subject,
+          content: [
+            { type: 'text/plain', value: message.text },
+            { type: 'text/html', value: message.html },
+          ],
+        }),
+      });
+    } catch {
+      throw new Error(
+        signal.aborted ? 'EMAIL_SENDGRID_TIMEOUT' : 'EMAIL_SENDGRID_CONNECTION_FAILED',
+      );
+    }
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`SendGrid retornou ${response.status}: ${body.slice(0, 500)}`);
+      await response.text().catch(() => undefined);
+      throw new Error(`EMAIL_SENDGRID_REJECTED_${response.status}`);
     }
   }
 }

@@ -2,9 +2,7 @@ import { resolveCorrelationId } from './correlation-id.middleware';
 
 describe('resolveCorrelationId', () => {
   it('preserva um identificador seguro recebido do cliente', () => {
-    expect(resolveCorrelationId('req-2026_09.29:abc')).toBe(
-      'req-2026_09.29:abc',
-    );
+    expect(resolveCorrelationId('req-2026_09.29:abc')).toBe('req-2026_09.29:abc');
   });
 
   it('substitui conteúdo fora da allowlist por UUID', () => {

@@ -1,255 +1,192 @@
 # Felipe Almeida Developer
 
-Portfólio profissional com projetos, artigos, notícias, newsletter e contato — em **pt-BR, en e es**.
+Portfólio profissional multilíngue com site público, painel administrativo, projetos, artigos, notícias, contato, newsletter, SEO, LGPD, observabilidade e processamento assíncrono.
 
-> Estado atual: fundação, PostgreSQL/Prisma, API modular, Redis, RabbitMQ, worker e **infraestrutura de engenharia GitHub/CI-CD** implementados. A antiga Parte 09 foi antecipada antes do frontend público para que as próximas entregas já passem por Git Flow e quality gates automatizados.
+O código está organizado como monorepo e possui ambientes locais e imagens de produção reproduzíveis. A publicação em um provedor externo depende somente da configuração das credenciais e URLs daquele ambiente.
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Front | Next.js (App Router), React, TypeScript, Tailwind, next-intl |
-| Back | NestJS (monólito modular, Clean Architecture/DDD) |
-| Dados | PostgreSQL 16 + Prisma 6, Redis |
-| Mensageria | RabbitMQ |
-| Infra | Docker Compose, Turborepo, pnpm |
-| Engenharia | Git Flow, GitHub Actions, CodeQL, CI/CD |
-| Testes | Jest (API), Vitest (web); Playwright/Testcontainers nas próximas partes |
+| Camada         | Tecnologia                                                |
+| -------------- | --------------------------------------------------------- |
+| Web            | Next.js 15, React 19, TypeScript, Tailwind e `next-intl`  |
+| API            | NestJS 11 em monólito modular com DDD/Clean Architecture  |
+| Worker         | Node.js, outbox transacional e consumidores idempotentes  |
+| Dados          | PostgreSQL 16 e Prisma 6                                  |
+| Cache e sessão | Redis 7                                                   |
+| Mensageria     | RabbitMQ 3.13 com retry e DLQ                             |
+| Qualidade      | Jest, Vitest, Playwright, axe, Supertest e Testcontainers |
+| Engenharia     | pnpm workspaces, Turborepo, Docker e GitHub Actions       |
+
+Idiomas públicos: `pt-BR` (padrão), `en` e `es`.
 
 ## Pré-requisitos
 
-- Node.js 20.11 ou superior
-- pnpm 9
-- Docker Desktop
-- VSCode (recomendado)
+- Node.js 22.22 ou superior;
+- pnpm 9.12 via Corepack;
+- Docker Desktop ou Docker Engine com Compose v2.
 
-No Windows, abra o Docker Desktop antes de subir a infraestrutura.
+## Configuração local
 
-## 1. Preparar o projeto
-
-### PowerShell (Windows)
+No PowerShell:
 
 ```powershell
 corepack enable
 corepack prepare pnpm@9.12.0 --activate
 Copy-Item .env.example .env
-pnpm install
-```
-
-### macOS/Linux/Git Bash
-
-```bash
-corepack enable
-corepack prepare pnpm@9.12.0 --activate
-cp .env.example .env
-pnpm install
-```
-
-Para a execução local, os valores padrão do `.env.example` são suficientes para a infraestrutura. Antes de autenticação/deploy, os segredos deverão ser trocados.
-
-## 2. Subir a infraestrutura
-
-```bash
+pnpm install --frozen-lockfile
 pnpm infra:up
-```
-
-Isso sobe:
-
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- RabbitMQ: `localhost:5672`
-- RabbitMQ Management: http://localhost:15672
-- Mailpit SMTP: `localhost:1025`
-- Mailpit UI: http://localhost:8025
-
-## 3. Preparar o banco
-
-Depois de `pnpm infra:up`:
-
-```bash
 pnpm db:setup
-```
-
-Para visualizar os dados:
-
-```bash
-pnpm db:studio
-```
-
-Health checks:
-
-- API: http://localhost:3333/api/health
-- Dependências: http://localhost:3333/api/health/dependencies
-- Métricas Prometheus: http://localhost:3333/api/metrics
-
-## 4. Rodar as aplicações
-
-```bash
 pnpm dev
 ```
 
-O comando inicia:
+No macOS, Linux ou Git Bash, troque `Copy-Item` por `cp`.
 
-- Web: http://localhost:3000/pt-BR
-- API: http://localhost:3333/api
-- Swagger: http://localhost:3333/docs
-- Worker: outbox + consumidor RabbitMQ
+Serviços locais:
 
-### Endpoints públicos disponíveis
+- site: `http://localhost:3000/pt-BR`;
+- API: `http://localhost:3333/api`;
+- health da API: `http://localhost:3333/api/health`;
+- dependências: `http://localhost:3333/api/health/dependencies`;
+- Swagger: `http://localhost:3333/docs`;
+- RabbitMQ Management: `http://localhost:15672`;
+- Mailpit: `http://localhost:8025`.
 
-- `GET /api/profile?locale=pt-BR`
-- `GET /api/projects?locale=pt-BR&page=1&limit=12`
-- `GET /api/projects/:slug?locale=pt-BR`
-- `GET /api/articles?locale=pt-BR&page=1&limit=12`
-- `GET /api/articles/:slug?locale=pt-BR`
-- `GET /api/news?locale=pt-BR&page=1&limit=12`
-- `GET /api/news/:slug?locale=pt-BR`
+O `.env.example` usa somente valores de desenvolvimento e marcadores seguros. Antes de produção, substitua todos os segredos, endereços e campos `TODO`; a aplicação rejeita configurações inseguras críticas quando `NODE_ENV=production`.
 
-## 5. Quality gates locais
+## Banco e migrations
+
+```bash
+pnpm db:generate
+pnpm db:validate
+pnpm db:migrate:deploy
+pnpm db:seed
+pnpm db:check
+```
+
+As migrations são append-only. O serviço `api` da imagem de produção executa `prisma migrate deploy` antes de iniciar e falha de forma explícita se a migração não puder ser aplicada.
+
+## Publicação e agendamento
+
+Artigos e notícias ficam públicos somente quando todas as condições são verdadeiras:
+
+```text
+publicationStatus = PUBLISHED
+publishedAt <= agora
+scheduledAt é nulo ou scheduledAt <= agora
+```
+
+`publishedAt` é a data editorial; `scheduledAt` é a retenção opcional até um instante futuro. O painel trabalha com o horário local do navegador e converte para ISO/UTC ao enviar. Listas, detalhes e capas consultam a mesma regra no PostgreSQL. Essas consultas temporais não dependem de cache, timer em memória, RabbitMQ ou reinício de processo.
+
+O worker complementa o fluxo emitindo uma única vez os eventos vencidos de artigo e edição da newsletter. O marcador durável no banco e os locks transacionais evitam republicação concorrente.
+
+## Mídia
+
+Uploads administrativos validam extensão, MIME, assinatura real, tamanho e checksum. Imagens são decodificadas, limitadas por pixels e regravadas sem metadados; PDFs ativos são recusados. ClamAV é obrigatório em produção.
+
+Desenvolvimento pode usar `MEDIA_STORAGE_PROVIDER=local`. Produção exige armazenamento S3-compatible privado, HTTPS, criptografia, versionamento e expiração de versões antigas. A reconciliação idempotente de exclusões pendentes está disponível ao superadministrador em `POST /api/admin/media/reconcile-storage`.
+
+## Testes e quality gates
 
 ```bash
 pnpm sdd:check
 pnpm github:check
+pnpm db:validate
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:coverage
 pnpm build
+pnpm test:e2e
+pnpm audit:prod
+pnpm audit:all
+git diff --check
 ```
 
-O `sdd:check` é exclusivamente local porque os artefatos SDD/harness não são versionados.
+Na primeira execução do E2E web:
 
-## 6. Git Flow
+```bash
+pnpm --filter @fad/web exec playwright install chromium
+```
 
-Branches permanentes:
+Os testes de integração usam containers descartáveis. O CI também aplica todas as migrations em PostgreSQL limpo e constrói as três imagens de produção.
 
-- `main`: último estado estável promovido;
-- `develop`: integração das entregas.
+## Imagens e Compose de produção
 
-Branches de trabalho:
+Validar a configuração e construir as imagens:
 
-- `feature/*`
-- `fix/*`
-- `hotfix/*`
-- `chore/*`
-- `docs/*`
-- `test/*`
-- `refactor/*`
-- `perf/*`
-- `ci/*`
+```bash
+pnpm infra:prod:config
+pnpm infra:prod:build
+```
+
+Subir a composição após configurar um `.env` de produção:
+
+```bash
+docker compose --env-file .env -f infra/docker/docker-compose.prod.yml up -d
+```
+
+As imagens são multi-stage e executam Web, API e Worker como usuário sem privilégios. O Compose de produção não publica PostgreSQL, Redis, RabbitMQ ou ClamAV na rede do host e inclui health checks e reinício controlado.
+
+## Backup e restauração
+
+Backup local pelo container PostgreSQL:
+
+```bash
+pnpm db:backup
+```
+
+O arquivo inclui ambiente e timestamp UTC. Cada backup recebe checksum SHA-256 e pode ser criptografado com AES-256-GCM autenticado por `BACKUP_ENCRYPTION_PASSPHRASE`. A retenção é controlada por `BACKUP_RETENTION_DAYS`.
+
+Restauração:
+
+```bash
+pnpm db:restore backups/fad_development_AAAAMMDDTHHMMSSZ.sql.gz
+```
+
+A restauração valida o checksum e a autenticação criptográfica, executa o SQL em transação única e exige a frase exata `RESTAURAR:<banco>`. O workflow `Backup de produção` roda diariamente, usa `BACKUP_DATABASE_URL` e publica apenas o backup criptografado e seu checksum como artefato privado. Configure também `BACKUP_ENCRYPTION_PASSPHRASE` com ao menos 32 caracteres.
+
+Mídias de produção não são copiadas pelo script PostgreSQL: o bucket deve manter versionamento, criptografia e replicação/backup no provedor. Redis e RabbitMQ não armazenam a fonte primária de dados de negócio; filas duráveis e outbox permitem reconstrução operacional.
+
+## Segurança e privacidade
+
+- JWT de curta duração, refresh token rotativo em cookie `httpOnly`, CSRF e RBAC;
+- CORS restrito, CSP, HSTS em produção e demais headers defensivos;
+- rate limit e degradação controlada quando Redis fica indisponível;
+- sanitização server-side de HTML rico;
+- double opt-in, tokens armazenados por hash e links sensíveis no fragmento da URL;
+- exportação, exclusão, anonimização e retenção de dados pessoais;
+- logs estruturados com `correlationId`, sem tokens e corpos pessoais;
+- CodeQL e auditoria de dependências no CI.
+
+Auditoria de conteúdo legado:
+
+```bash
+pnpm security:audit-rich-text
+```
+
+A correção destrutiva só é liberada após backup e confirmações explícitas documentadas no próprio comando.
+
+## Observabilidade
+
+A API expõe health, readiness de dependências e métricas Prometheus autenticadas em produção. O worker expõe `/health/live`, `/health/ready` e `/metrics` na porta de gestão. Logs usam níveis estruturados e propagam `correlationId` por HTTP, outbox e eventos.
+
+## CI/CD e Git Flow
 
 Fluxo normal:
 
 ```text
-branch de trabalho
-        ↓
-PR automático
-     develop
-        ↓
-CI + merge manual
-        ↓
-PR automático
-       main
-        ↓
-CI + merge manual
+feature|fix|chore|test|refactor|perf|ci/*
+  -> pull request para develop
+  -> pull request de develop para main
+  -> release/deploy
 ```
 
-Hotfix:
+Os merges em `develop` e `main` permanecem manuais e protegidos por checks. O CI valida lockfile, migrations, lint, tipos, testes, build, E2E, segurança e imagens. Após CI verde na `main`, o CD gera artefatos compilados e imagens Docker versionadas pelo commit. O envio a registry e o rollout dependem do provedor de hospedagem escolhido.
 
-```text
-hotfix/*
-   ↓
-PR automático
- main
-   ↓
-merge manual
-   ↓
-retrointegração automática
-   ↓
-develop
-```
+Workflows adicionais cobrem PR automático, hotfix/retrointegração, CodeQL, release SemVer e backup criptografado. Textos humanos, commits e releases permanecem em PT-BR.
 
-Commits, títulos e descrições de PR devem permanecer em PT-BR, mantendo os tipos do Conventional Commits.
-
-## 7. GitHub Actions / CI
-
-O workflow `CI` executa:
-
-- instalação com lockfile congelado;
-- validação da política de PR;
-- validação da configuração GitHub;
-- Prisma Client;
-- Prisma validate;
-- lint;
-- typecheck;
-- testes;
-- build.
-
-O CI roda em `main`, `develop`, branches de trabalho e PRs para `main`/`develop`.
-
-## 8. Pull requests automáticos
-
-As automações abrem:
-
-- branch de trabalho → `develop`;
-- `develop` → `main`;
-- `hotfix/*` → `main`.
-
-O PR é aberto automaticamente, mas **o merge permanece manual**.
-
-## 9. Segurança
-
-O projeto executa CodeQL em:
-
-- push para `main` e `develop`;
-- PRs para `main` e `develop`;
-- execução semanal.
-
-
-## 10. Releases
-
-O workflow `Release` é manual e exige SemVer:
-
-```text
-vX.Y.Z
-```
-
-Ele gera notas em PT-BR a partir dos commits, cria a tag e publica uma GitHub Release.
-
-## 11. CD
-
-Após um CI bem-sucedido na `main`, o workflow de entrega contínua:
-
-1. recompila a versão validada;
-2. gera um pacote dos artefatos de web, API e worker;
-3. publica o artefato no GitHub Actions com retenção de 14 dias.
-
-A implantação automática em infraestrutura externa será conectada quando o provedor de produção for definido. O pipeline de entrega já fica ativo sem simular um deploy que ainda não possui destino real.
-
-## 12. Proteções recomendadas no GitHub
-
-Após os workflows executarem ao menos uma vez:
-
-- proteger `main` e `develop`;
-- exigir PR antes do merge;
-- exigir o check `Verificações obrigatórias`;
-- bloquear force push;
-- bloquear exclusão das branches permanentes;
-- manter squash merge como estratégia de merge;
-- não exigir aprovação externa enquanto o repositório tiver apenas um mantenedor.
-
-Também é necessário habilitar em **Settings → Actions → General**:
-
-- `Read and write permissions`;
-- `Allow GitHub Actions to create and approve pull requests`.
-
-## 13. Encerrar ambiente local
-
-Pare `pnpm dev` com `Ctrl+C` e execute:
+## Encerrar o ambiente local
 
 ```bash
 pnpm infra:down
 ```
-
-## Próxima parte
-
-A próxima etapa é a **Parte 05 — frontend público completo**, já desenvolvida sob os quality gates e automações de GitHub implantados nesta etapa.

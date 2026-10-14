@@ -29,7 +29,12 @@ export interface PaginatedResult<T> {
   };
 }
 
-export function toPaginatedResult<T>(data: T[], total: number, page: number, limit: number): PaginatedResult<T> {
+export function toPaginatedResult<T>(
+  data: T[],
+  total: number,
+  page: number,
+  limit: number,
+): PaginatedResult<T> {
   return {
     data,
     pagination: {

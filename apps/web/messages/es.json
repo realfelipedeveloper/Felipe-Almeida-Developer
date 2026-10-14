@@ -75,7 +75,8 @@
       }
     },
     "galleryTitle": "Más allá del código",
-    "galleryText": "Algunos registros personales que ayudan a darle identidad propia al portafolio."
+    "galleryText": "Algunos registros personales que ayudan a darle identidad propia al portafolio.",
+    "resume": "Descargar currículum"
   },
   "projects": {
     "eyebrow": "Proyectos",
@@ -157,7 +158,7 @@
   "privacy": {
     "eyebrow": "Privacidad",
     "title": "Política de Privacidad",
-    "intro": "Esta página describe la base de privacidad del portafolio. Los flujos de recolección serán actualizados al activar contacto, newsletter y analytics.",
+    "intro": "Esta página describe cómo el portafolio trata datos personales para contacto, newsletter, seguridad y analytics opcional.",
     "sections": [
       {
         "title": "Datos recopilados",
@@ -169,13 +170,39 @@
       },
       {
         "title": "Derechos",
-        "text": "El titular podrá solicitar acceso, corrección, exportación o eliminación cuando corresponda. Los flujos automatizados se conectarán en la etapa correspondiente del backend."
+        "text": "El titular puede solicitar la exportación o eliminación de sus datos mediante el formulario. La identidad se confirma con un enlace de un solo uso enviado por correo."
       },
       {
         "title": "Retención y seguridad",
         "text": "Los datos se conservarán solo durante el tiempo necesario para las finalidades declaradas y serán protegidos con controles técnicos y operativos adecuados al riesgo."
       }
-    ]
+    ],
+    "request": {
+      "title": "Ejerce tus derechos",
+      "description": "Indica tu correo y elige una operación. Para proteger tus datos, enviaremos un enlace de verificación válido por 30 minutos. La respuesta no revela si la dirección está registrada.",
+      "email": "Correo electrónico",
+      "type": "¿Qué deseas hacer?",
+      "exportOption": "Exportar mis datos",
+      "deleteOption": "Eliminar mis datos",
+      "deleteWarning": "La eliminación borra suscripciones y consentimientos vinculados y anonimiza los mensajes de contacto. Una vez confirmada, no se puede deshacer.",
+      "submit": "Enviar enlace de verificación",
+      "sending": "Enviando…",
+      "successEyebrow": "SOLICITUD RECIBIDA",
+      "successTitle": "Revisa tu correo.",
+      "successFallback": "Si la dirección es válida, enviaremos un enlace de verificación.",
+      "errorFallback": "No se pudo registrar la solicitud. Inténtalo de nuevo."
+    },
+    "verify": {
+      "metadataTitle": "Verificación de privacidad",
+      "processing": "Verificando tu solicitud…",
+      "exportReady": "Tus datos están listos.",
+      "deletionComplete": "Solicitud de eliminación completada.",
+      "download": "Descargar archivo JSON",
+      "invalid": "Este enlace no es válido, caducó o ya fue utilizado.",
+      "confirmTitle": "Confirma la eliminación definitiva.",
+      "confirmDescription": "Esta acción anonimiza mensajes y elimina suscripciones y datos vinculados al correo verificado. No se puede deshacer.",
+      "confirmAction": "Eliminar definitivamente"
+    }
   },
   "cookies": {
     "eyebrow": "Privacidad",
@@ -192,7 +219,7 @@
       },
       {
         "title": "Cambiar preferencia",
-        "text": "Puedes limpiar los datos del sitio en el navegador para restablecer tus elecciones. Un centro completo de preferencias se conectará junto con la capa de analytics."
+        "text": "Usa el botón “Preferencias de cookies” del pie de página en cualquier momento para aceptar o revocar analytics."
       }
     ]
   },
@@ -215,6 +242,11 @@
     "page": "Página {page} de {total}",
     "backHome": "Volver al inicio",
     "notFound": "Contenido no encontrado.",
+    "notFoundDescription": "La dirección puede haber cambiado o el contenido aún no está publicado en este idioma.",
+    "errorLabel": "Error",
+    "errorTitle": "No se pudo cargar esta página.",
+    "errorDescription": "Inténtalo de nuevo. Si el problema persiste, el servicio puede no estar disponible temporalmente.",
+    "retry": "Intentar de nuevo",
     "apiUnavailable": "Contenido temporalmente no disponible. Inténtalo de nuevo en unos instantes."
   },
   "footer": {
@@ -222,6 +254,7 @@
     "rights": "Todos los derechos reservados.",
     "privacy": "Privacidad",
     "cookies": "Cookies",
+    "cookiePreferences": "Preferencias de cookies",
     "rss": "RSS"
   }
 }

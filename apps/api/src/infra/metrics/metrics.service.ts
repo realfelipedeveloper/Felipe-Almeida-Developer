@@ -9,7 +9,10 @@ interface HttpMetricKey {
 @Injectable()
 export class MetricsService {
   private readonly startedAt = Date.now();
-  private readonly httpCounters = new Map<string, { key: HttpMetricKey; count: number; durationMs: number }>();
+  private readonly httpCounters = new Map<
+    string,
+    { key: HttpMetricKey; count: number; durationMs: number }
+  >();
 
   observeHttpRequest(method: string, route: string, statusCode: number, durationMs: number): void {
     const normalizedRoute = route || 'desconhecida';

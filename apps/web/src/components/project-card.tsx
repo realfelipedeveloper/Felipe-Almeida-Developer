@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Locale } from '@/i18n/config';
 import type { ProjectListItem } from '@/lib/api/types';
+import { mediaUrl } from '@/lib/content';
 import { Tag } from './tag';
 
 export function ProjectCard({
@@ -16,6 +17,14 @@ export function ProjectCard({
 }) {
   return (
     <article className="site-card group flex h-full flex-col p-6 md:p-7">
+      {project.coverMediaId ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={mediaUrl(project.coverMediaId) ?? undefined}
+          alt=""
+          className="-mx-6 -mt-6 mb-6 h-44 w-[calc(100%+3rem)] object-cover md:-mx-7 md:-mt-7 md:w-[calc(100%+3.5rem)]"
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <span className="eyebrow">{lifecycleLabel}</span>
         {project.featured ? (
@@ -40,10 +49,7 @@ export function ProjectCard({
         ))}
       </div>
 
-      <Link
-        href={`/${locale}/projetos/${project.slug}`}
-        className="section-link mt-7"
-      >
+      <Link href={`/${locale}/projetos/${project.slug}`} className="section-link mt-7">
         {detailsLabel}
         <span className="transition-transform group-hover:translate-x-1" aria-hidden="true">
           →

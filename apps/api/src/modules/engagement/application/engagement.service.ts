@@ -1,27 +1,11 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
-import {
-  NewsletterSubscriberStatus,
-  NewsletterTokenPurpose,
-  Prisma,
-} from '@prisma/client';
-import {
-  createHash,
-  createHmac,
-  randomUUID,
-} from 'node:crypto';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { NewsletterSubscriberStatus, NewsletterTokenPurpose, Prisma } from '@prisma/client';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { AppLogger } from '../../../infra/logging/app-logger.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { RedisService } from '../../../infra/redis/redis.service';
 import { toPrismaLocale } from '../../../shared/domain/locale.mapper';
-import type {
-  ContactMessageDto,
-  NewsletterSubscribeDto,
-} from '../presentation/dto/engagement.dto';
+import type { ContactMessageDto, NewsletterSubscribeDto } from '../presentation/dto/engagement.dto';
 
 type PublicLocale = 'pt-BR' | 'en' | 'es';
 
@@ -55,6 +39,11 @@ const messages = {
   },
 } satisfies Record<PublicLocale, Record<string, string>>;
 
+const SUBJECT_TRANSACTION_OPTIONS = {
+  maxWait: 5_000,
+  timeout: 30_000,
+} as const;
+
 @Injectable()
 export class EngagementService {
   constructor(
@@ -72,6 +61,7 @@ export class EngagementService {
     }
 
     const email = body.email.trim().toLowerCase();
+    const startedAt = new Date();
     const ipHash = this.hashIp(ip);
 
     await Promise.all([
@@ -84,6 +74,7 @@ export class EngagementService {
     const eventCorrelationId = this.safeUuid(correlationId) ?? randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, email, startedAt))) return;
       await tx.contactMessage.create({
         data: {
           id: messageId,
@@ -100,21 +91,16 @@ export class EngagementService {
       await tx.outboxEvent.create({
         data: {
           id: eventId,
-          eventName: 'contact.created',
+          eventName: 'contact.submitted',
           aggregateType: 'ContactMessage',
           aggregateId: messageId,
           correlationId: eventCorrelationId,
           payload: {
             contactMessageId: messageId,
-            name: body.name.trim(),
-            email,
-            subject: body.subject.trim(),
-            message: body.message.trim(),
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].contact };
   }
@@ -128,6 +114,7 @@ export class EngagementService {
     }
 
     const email = body.email.trim().toLowerCase();
+    const startedAt = new Date();
     const ipHash = this.hashIp(ip);
 
     await Promise.all([
@@ -151,6 +138,7 @@ export class EngagementService {
     const correlation = this.safeUuid(correlationId) ?? randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, email, startedAt))) return;
       if (current) {
         await tx.newsletterSubscriber.update({
           where: { id: current.id },
@@ -197,7 +185,7 @@ export class EngagementService {
 
       await tx.outboxEvent.create({
         data: {
-          eventName: 'newsletter.confirmation.requested',
+          eventName: 'newsletter.subscribed',
           aggregateType: 'NewsletterSubscriber',
           aggregateId: subscriberId,
           correlationId: correlation,
@@ -205,17 +193,16 @@ export class EngagementService {
             subscriberId,
             tokenId,
             purpose: NewsletterTokenPurpose.CONFIRM_SUBSCRIPTION,
-            email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].subscribe };
   }
 
   async confirm(token: string) {
+    const startedAt = new Date();
     const tokenHash = this.hashValue(token);
     const row = await this.prisma.newsletterToken.findUnique({
       where: { tokenHash },
@@ -244,6 +231,7 @@ export class EngagementService {
     const correlationId = randomUUID();
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, row.subscriber.email, startedAt))) return;
       await tx.newsletterToken.update({
         where: { id: row.id },
         data: { usedAt: row.usedAt ?? new Date() },
@@ -287,17 +275,16 @@ export class EngagementService {
             subscriberId: row.subscriberId,
             unsubscribeTokenId,
             purpose: NewsletterTokenPurpose.UNSUBSCRIBE,
-            email: row.subscriber.email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].confirmed };
   }
 
   async unsubscribe(token: string) {
+    const startedAt = new Date();
     const tokenHash = this.hashValue(token);
     const row = await this.prisma.newsletterToken.findUnique({
       where: { tokenHash },
@@ -314,6 +301,7 @@ export class EngagementService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      if (!(await this.mayPersistSubject(tx, row.subscriber.email, startedAt))) return;
       await tx.newsletterToken.update({
         where: { id: row.id },
         data: { usedAt: row.usedAt ?? new Date() },
@@ -334,12 +322,10 @@ export class EngagementService {
           aggregateId: row.subscriberId,
           payload: {
             subscriberId: row.subscriberId,
-            email: row.subscriber.email,
-            locale,
           } satisfies Prisma.JsonObject,
         },
       });
-    });
+    }, SUBJECT_TRANSACTION_OPTIONS);
 
     return { message: messages[locale].unsubscribed };
   }
@@ -360,10 +346,12 @@ export class EngagementService {
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.child('seguranca', { chaveRateLimit: key }).warn(
-        { erro: error instanceof Error ? error.message : String(error) },
-        'Redis indisponível durante rate limit público; requisição seguirá com validações restantes',
-      );
+      this.logger
+        .child('seguranca', { chaveRateLimit: key })
+        .warn(
+          { erro: error instanceof Error ? error.message : String(error) },
+          'Redis indisponível durante rate limit público; requisição seguirá com validações restantes',
+        );
     }
   }
 
@@ -385,7 +373,9 @@ export class EngagementService {
 
     const fallback = process.env.JWT_REFRESH_SECRET?.trim();
     if (!fallback || fallback.length < 32 || fallback.startsWith('gere-')) {
-      throw new Error('NEWSLETTER_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.');
+      throw new Error(
+        'NEWSLETTER_TOKEN_SECRET ou JWT_REFRESH_SECRET precisa ter pelo menos 32 caracteres.',
+      );
     }
     return fallback;
   }
@@ -396,15 +386,40 @@ export class EngagementService {
       process.env.JWT_REFRESH_SECRET?.trim() ||
       'desenvolvimento-local';
 
-    return createHmac('sha256', secret).update(ip ?? 'desconhecido').digest('hex');
+    return createHmac('sha256', secret)
+      .update(ip ?? 'desconhecido')
+      .digest('hex');
   }
 
   private hashValue(value: string): string {
     return createHash('sha256').update(value).digest('hex');
   }
 
+  private async mayPersistSubject(
+    tx: Prisma.TransactionClient,
+    email: string,
+    startedAt: Date,
+  ): Promise<boolean> {
+    const emailKey = this.privacySubjectKey(email);
+    await tx.$queryRaw(Prisma.sql`
+      SELECT 1 AS acquired
+      FROM pg_advisory_xact_lock(hashtextextended(${emailKey}, 0))
+    `);
+    const tombstone = await tx.privacyErasureTombstone.findUnique({ where: { emailKey } });
+    return !tombstone || tombstone.erasedAt.getTime() <= startedAt.getTime();
+  }
+
+  private privacySubjectKey(email: string): string {
+    const secret = process.env.PRIVACY_HASH_SECRET?.trim();
+    if (!secret || secret.length < 32 || secret.startsWith('gere-')) {
+      throw new Error('PRIVACY_HASH_SECRET precisa ter pelo menos 32 caracteres.');
+    }
+    return createHmac('sha256', secret).update(email).digest('hex');
+  }
+
   private safeUuid(value: string | undefined): string | null {
-    return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    return value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
       ? value
       : null;
   }

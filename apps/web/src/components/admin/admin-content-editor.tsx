@@ -1,19 +1,19 @@
 'use client';
 
-import {
-  FormEvent,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
-import {
-  adminFetch,
-  AdminApiError,
-} from '@/lib/admin/admin-api';
+
+import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
+
+import { slugify } from '@/lib/content';
+import { currentDateTimeLocal, localDateTimeToIso, toDateTimeLocal } from '@/lib/date-time-local';
+
 import { AdminFeedbackModal } from './admin-modal';
+import { AdminMediaMultiPicker, AdminMediaPicker } from './admin-media-picker';
 
 type Kind = 'projects' | 'articles' | 'news';
+
 type LocaleKey = 'pt-BR' | 'en' | 'es';
 
 const locales: LocaleKey[] = ['pt-BR', 'en', 'es'];
@@ -83,11 +83,12 @@ interface ExistingContent {
   tags?: Array<{
     tagId: string;
   }>;
+  media?: Array<{
+    mediaAssetId: string;
+  }>;
 }
 
-function blankTranslation(
-  locale: LocaleKey,
-): TranslationState {
+function blankTranslation(locale: LocaleKey): TranslationState {
   return {
     locale,
     title: '',
@@ -104,20 +105,10 @@ function blankTranslation(
   };
 }
 
-function dateInput(
-  value?: string | null,
-  dateOnly = false,
-) {
+function dateInput(value?: string | null, dateOnly = false) {
   if (!value) return '';
-  return dateOnly
-    ? value.slice(0, 10)
-    : value.slice(0, 16);
-}
 
-function toIso(value: string) {
-  return value
-    ? new Date(value).toISOString()
-    : null;
+  return dateOnly ? value.slice(0, 10) : toDateTimeLocal(value);
 }
 
 export function AdminContentEditor({
@@ -134,59 +125,49 @@ export function AdminContentEditor({
   onCancel?: () => void;
 }) {
   const router = useRouter();
+
   const [options, setOptions] = useState<Options>({
     technologies: [],
     tags: [],
   });
-  const [existing, setExisting] =
-    useState<ExistingContent | null>(null);
-  const [translations, setTranslations] = useState<
-    TranslationState[]
-  >(locales.map(blankTranslation));
-  const [technologyIds, setTechnologyIds] = useState<
-    string[]
-  >([]);
+
+  const [existing, setExisting] = useState<ExistingContent | null>(null);
+
+  const [translations, setTranslations] = useState<TranslationState[]>(
+    locales.map(blankTranslation),
+  );
+
+  const [technologyIds, setTechnologyIds] = useState<string[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [error, setError] = useState('');
-  const [successOpen, setSuccessOpen] =
-    useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [publicationStatus, setPublicationStatus] = useState('DRAFT');
+  const [coverMediaId, setCoverMediaId] = useState<string | null>(null);
+  const [mediaIds, setMediaIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(!id);
 
-  const routeName =
-    kind === 'projects'
-      ? 'projetos'
-      : kind === 'articles'
-        ? 'artigos'
-        : 'noticias';
+  const routeName = kind === 'projects' ? 'projetos' : kind === 'articles' ? 'artigos' : 'noticias';
 
-  const singular =
-    kind === 'projects'
-      ? 'Projeto'
-      : kind === 'articles'
-        ? 'Artigo'
-        : 'Notícia';
+  const singular = kind === 'projects' ? 'Projeto' : kind === 'articles' ? 'Artigo' : 'Notícia';
 
   useEffect(() => {
     adminFetch<Options>('/api/admin/content/options')
       .then(setOptions)
-      .catch((cause: Error) =>
-        setError(cause.message),
-      );
+      .catch((cause: Error) => setError(cause.message));
 
     if (!id) return;
 
-    adminFetch<ExistingContent>(
-      `/api/admin/content/${kind}/${id}`,
-    )
+    adminFetch<ExistingContent>(`/api/admin/content/${kind}/${id}`)
       .then((data) => {
         setExisting(data);
+        setPublicationStatus(data.publicationStatus ?? 'DRAFT');
+        setCoverMediaId(data.coverMediaId ?? null);
+        setMediaIds(data.media?.map((item) => item.mediaAssetId) ?? []);
+
         setTranslations(
           locales.map((locale) => {
-            const source = data.translations.find(
-              (item) =>
-                prismaToLocale[item.locale] === locale,
-            );
+            const source = data.translations.find((item) => prismaToLocale[item.locale] === locale);
 
             if (!source) {
               return blankTranslation(locale);
@@ -198,32 +179,20 @@ export function AdminContentEditor({
               slug: String(source.slug ?? ''),
               summary: String(source.summary ?? ''),
               seoTitle: String(source.seoTitle ?? ''),
-              seoDescription: String(
-                source.seoDescription ?? '',
-              ),
-              description: String(
-                source.description ?? '',
-              ),
-              challenges: String(
-                source.challenges ?? '',
-              ),
+              seoDescription: String(source.seoDescription ?? ''),
+              description: String(source.description ?? ''),
+              challenges: String(source.challenges ?? ''),
               solution: String(source.solution ?? ''),
               results: String(source.results ?? ''),
               bodyHtml: String(source.bodyHtml ?? ''),
-              contentHtml: String(
-                source.contentHtml ?? '',
-              ),
+              contentHtml: String(source.contentHtml ?? ''),
             };
           }),
         );
-        setTechnologyIds(
-          data.technologies?.map(
-            (item) => item.technologyId,
-          ) ?? [],
-        );
-        setTagIds(
-          data.tags?.map((item) => item.tagId) ?? [],
-        );
+
+        setTechnologyIds(data.technologies?.map((item) => item.technologyId) ?? []);
+
+        setTagIds(data.tags?.map((item) => item.tagId) ?? []);
         setLoaded(true);
       })
       .catch((cause: Error) => {
@@ -236,94 +205,70 @@ export function AdminContentEditor({
     () =>
       options.tags.map((tag) => ({
         id: tag.id,
-        label:
-          tag.translations.find(
-            (item) => item.locale === 'PT_BR',
-          )?.label ?? tag.key,
+        label: tag.translations.find((item) => item.locale === 'PT_BR')?.label ?? tag.key,
       })),
     [options.tags],
   );
 
-  function updateTranslation(
-    index: number,
-    field: keyof TranslationState,
-    value: string,
-  ) {
+  function updateTranslation(index: number, field: keyof TranslationState, value: string) {
     setTranslations((items) =>
-      items.map((item, current) =>
-        current === index
-          ? { ...item, [field]: value }
-          : item,
-      ),
+      items.map((item, current) => {
+        if (current !== index) return item;
+
+        if (field === 'title') {
+          return {
+            ...item,
+            title: value,
+            slug: slugify(value),
+          };
+        }
+
+        return { ...item, [field]: value };
+      }),
     );
   }
 
-  function toggle(
-    value: string,
-    values: string[],
-    setter: (next: string[]) => void,
-  ) {
-    setter(
-      values.includes(value)
-        ? values.filter((item) => item !== value)
-        : [...values, value],
-    );
+  function toggle(value: string, values: string[], setter: (next: string[]) => void) {
+    setter(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
   }
 
-  async function submit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError('');
 
     const form = new FormData(event.currentTarget);
-    const activeTranslations = translations.filter(
-      (item) => item.title.trim(),
-    );
+
+    const activeTranslations = translations
+      .filter((item) => item.title.trim())
+      .map((item) => ({
+        ...item,
+        slug: slugify(item.title),
+      }));
 
     try {
       let body: Record<string, unknown>;
 
       if (kind === 'projects') {
         body = {
-          publicationStatus: String(
-            form.get('publicationStatus'),
-          ),
+          publicationStatus: String(form.get('publicationStatus')),
           lifecycle: String(form.get('lifecycle')),
           featured: form.get('featured') === 'on',
-          startedAt:
-            String(form.get('startedAt') ?? '') ||
-            null,
-          endedAt:
-            String(form.get('endedAt') ?? '') ||
-            null,
-          repositoryUrl:
-            String(form.get('repositoryUrl') ?? '') ||
-            null,
-          demoUrl:
-            String(form.get('demoUrl') ?? '') ||
-            null,
-          coverMediaId:
-            existing?.coverMediaId ?? null,
-          sortOrder: Number(
-            form.get('sortOrder') ?? 0,
-          ),
-          publishedAt: toIso(
-            String(form.get('publishedAt') ?? ''),
-          ),
+          startedAt: String(form.get('startedAt') ?? '') || null,
+          endedAt: String(form.get('endedAt') ?? '') || null,
+          repositoryUrl: String(form.get('repositoryUrl') ?? '') || null,
+          demoUrl: String(form.get('demoUrl') ?? '') || null,
+          coverMediaId,
+          sortOrder: Number(form.get('sortOrder') ?? 0),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
           technologyIds,
           tagIds,
+          mediaIds,
           translations: activeTranslations.map(
-            ({
-              bodyHtml: _body,
-              contentHtml: _content,
-              ...item
-            }) => ({
+            ({ bodyHtml: _body, contentHtml: _content, ...item }) => ({
               ...item,
               seoTitle: item.seoTitle || null,
-              seoDescription:
-                item.seoDescription || null,
+              seoDescription: item.seoDescription || null,
               challenges: item.challenges || null,
               solution: item.solution || null,
               results: item.results || null,
@@ -332,24 +277,16 @@ export function AdminContentEditor({
         };
       } else if (kind === 'articles') {
         body = {
-          publicationStatus: String(
-            form.get('publicationStatus'),
-          ),
-          authorProfileId:
-            existing?.authorProfileId ?? null,
-          coverMediaId:
-            existing?.coverMediaId ?? null,
-          readingTimeMinutes: String(
-            form.get('readingTimeMinutes') ?? '',
-          )
+          publicationStatus: String(form.get('publicationStatus')),
+          authorProfileId: existing?.authorProfileId ?? null,
+          coverMediaId,
+          readingTimeMinutes: String(form.get('readingTimeMinutes') ?? '')
             ? Number(form.get('readingTimeMinutes'))
             : null,
-          scheduledAt: toIso(
-            String(form.get('scheduledAt') ?? ''),
-          ),
-          publishedAt: toIso(
-            String(form.get('publishedAt') ?? ''),
-          ),
+
+          scheduledAt: localDateTimeToIso(String(form.get('scheduledAt') ?? '')),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
+
           tagIds,
           translations: activeTranslations.map(
             ({
@@ -362,21 +299,16 @@ export function AdminContentEditor({
             }) => ({
               ...item,
               seoTitle: item.seoTitle || null,
-              seoDescription:
-                item.seoDescription || null,
+              seoDescription: item.seoDescription || null,
             }),
           ),
         };
       } else {
         body = {
-          publicationStatus: String(
-            form.get('publicationStatus'),
-          ),
-          coverMediaId:
-            existing?.coverMediaId ?? null,
-          publishedAt: toIso(
-            String(form.get('publishedAt') ?? ''),
-          ),
+          publicationStatus: String(form.get('publicationStatus')),
+          coverMediaId,
+          scheduledAt: localDateTimeToIso(String(form.get('scheduledAt') ?? '')),
+          publishedAt: localDateTimeToIso(String(form.get('publishedAt') ?? '')),
           tagIds,
           translations: activeTranslations.map(
             ({
@@ -389,29 +321,21 @@ export function AdminContentEditor({
             }) => ({
               ...item,
               seoTitle: item.seoTitle || null,
-              seoDescription:
-                item.seoDescription || null,
+              seoDescription: item.seoDescription || null,
             }),
           ),
         };
       }
 
-      await adminFetch(
-        `/api/admin/content/${kind}${
-          id ? `/${id}` : ''
-        }`,
-        {
-          method: id ? 'PATCH' : 'POST',
-          body: JSON.stringify(body),
-        },
-      );
+      await adminFetch(`/api/admin/content/${kind}${id ? `/${id}` : ''}`, {
+        method: id ? 'PATCH' : 'POST',
+        body: JSON.stringify(body),
+      });
 
       setSuccessOpen(true);
     } catch (cause) {
       setError(
-        cause instanceof AdminApiError
-          ? cause.message
-          : 'Não foi possível salvar o conteúdo.',
+        cause instanceof AdminApiError ? cause.message : 'Não foi possível salvar o conteúdo.',
       );
     } finally {
       setSaving(false);
@@ -440,11 +364,7 @@ export function AdminContentEditor({
   }
 
   if (!loaded) {
-    return (
-      <p className="text-slate-400">
-        Carregando conteúdo…
-      </p>
-    );
+    return <p className="text-slate-400">Carregando conteúdo…</p>;
   }
 
   return (
@@ -452,47 +372,26 @@ export function AdminContentEditor({
       <div>
         {!embedded ? (
           <h1 className="text-4xl font-black tracking-tight">
-            {id
-              ? `Editar ${singular.toLowerCase()}`
-              : `Novo ${singular.toLowerCase()}`}
+            {id ? `Editar ${singular.toLowerCase()}` : `Novo ${singular.toLowerCase()}`}
           </h1>
         ) : null}
 
-        <form
-          onSubmit={submit}
-          className={
-            embedded
-              ? 'space-y-8'
-              : 'mt-8 space-y-8'
-          }
-        >
+        <form onSubmit={submit} className={embedded ? 'space-y-8' : 'mt-8 space-y-8'}>
           <section className="grid gap-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 md:grid-cols-2 lg:grid-cols-3">
             <Select
               name="publicationStatus"
               label="Status"
-              defaultValue={
-                existing?.publicationStatus ?? 'DRAFT'
-              }
-              options={[
-                'DRAFT',
-                'PUBLISHED',
-                'ARCHIVED',
-              ]}
+              value={publicationStatus}
+              onChange={(event) => setPublicationStatus(event.target.value)}
+              options={['DRAFT', 'PUBLISHED', 'ARCHIVED']}
             />
 
             {kind === 'projects' ? (
               <Select
                 name="lifecycle"
                 label="Ciclo"
-                defaultValue={
-                  existing?.lifecycle ?? 'IN_PROGRESS'
-                }
-                options={[
-                  'PLANNED',
-                  'IN_PROGRESS',
-                  'COMPLETED',
-                  'MAINTENANCE',
-                ]}
+                defaultValue={existing?.lifecycle ?? 'IN_PROGRESS'}
+                options={['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'MAINTENANCE']}
               />
             ) : null}
 
@@ -501,9 +400,7 @@ export function AdminContentEditor({
                 <input
                   name="featured"
                   type="checkbox"
-                  defaultChecked={
-                    existing?.featured ?? false
-                  }
+                  defaultChecked={existing?.featured ?? false}
                 />
                 Projeto em destaque
               </label>
@@ -514,10 +411,7 @@ export function AdminContentEditor({
                 name="startedAt"
                 label="Início"
                 type="date"
-                defaultValue={dateInput(
-                  existing?.startedAt,
-                  true,
-                )}
+                defaultValue={dateInput(existing?.startedAt, true)}
               />
             ) : null}
 
@@ -526,10 +420,7 @@ export function AdminContentEditor({
                 name="endedAt"
                 label="Conclusão"
                 type="date"
-                defaultValue={dateInput(
-                  existing?.endedAt,
-                  true,
-                )}
+                defaultValue={dateInput(existing?.endedAt, true)}
               />
             ) : null}
 
@@ -538,9 +429,7 @@ export function AdminContentEditor({
                 name="sortOrder"
                 label="Ordem"
                 type="number"
-                defaultValue={String(
-                  existing?.sortOrder ?? 0,
-                )}
+                defaultValue={String(existing?.sortOrder ?? 0)}
               />
             ) : null}
 
@@ -549,9 +438,7 @@ export function AdminContentEditor({
                 name="repositoryUrl"
                 label="Repositório"
                 type="url"
-                defaultValue={
-                  existing?.repositoryUrl ?? ''
-                }
+                defaultValue={existing?.repositoryUrl ?? ''}
               />
             ) : null}
 
@@ -560,9 +447,7 @@ export function AdminContentEditor({
                 name="demoUrl"
                 label="Demonstração"
                 type="url"
-                defaultValue={
-                  existing?.demoUrl ?? ''
-                }
+                defaultValue={existing?.demoUrl ?? ''}
               />
             ) : null}
 
@@ -572,23 +457,17 @@ export function AdminContentEditor({
                 label="Tempo de leitura (min)"
                 type="number"
                 defaultValue={
-                  existing?.readingTimeMinutes
-                    ? String(
-                        existing.readingTimeMinutes,
-                      )
-                    : ''
+                  existing?.readingTimeMinutes ? String(existing.readingTimeMinutes) : ''
                 }
               />
             ) : null}
 
-            {kind === 'articles' ? (
+            {kind === 'articles' || kind === 'news' ? (
               <Input
                 name="scheduledAt"
                 label="Agendamento"
                 type="datetime-local"
-                defaultValue={dateInput(
-                  existing?.scheduledAt,
-                )}
+                defaultValue={dateInput(existing?.scheduledAt)}
               />
             ) : null}
 
@@ -596,32 +475,37 @@ export function AdminContentEditor({
               name="publishedAt"
               label="Publicação"
               type="datetime-local"
-              defaultValue={dateInput(
-                existing?.publishedAt,
-              )}
+              defaultValue={dateInput(existing?.publishedAt) || (!id ? currentDateTimeLocal() : '')}
+              required={publicationStatus === 'PUBLISHED'}
             />
+
+            <AdminMediaPicker
+              label="Imagem de capa"
+              kind="IMAGE"
+              value={coverMediaId}
+              onChange={setCoverMediaId}
+            />
+
+            {kind === 'projects' ? (
+              <AdminMediaMultiPicker
+                label="Galeria do projeto"
+                values={mediaIds}
+                onChange={setMediaIds}
+              />
+            ) : null}
           </section>
 
           {kind === 'projects' ? (
             <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-              <h2 className="font-bold">
-                Tecnologias
-              </h2>
+              <h2 className="font-bold">Tecnologias</h2>
+
               <div className="mt-4 flex flex-wrap gap-3">
                 {options.technologies.map((item) => (
                   <Check
                     key={item.id}
-                    checked={technologyIds.includes(
-                      item.id,
-                    )}
+                    checked={technologyIds.includes(item.id)}
                     label={item.name}
-                    onChange={() =>
-                      toggle(
-                        item.id,
-                        technologyIds,
-                        setTechnologyIds,
-                      )
-                    }
+                    onChange={() => toggle(item.id, technologyIds, setTechnologyIds)}
                   />
                 ))}
               </div>
@@ -630,211 +514,114 @@ export function AdminContentEditor({
 
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <h2 className="font-bold">Tags</h2>
+
             <div className="mt-4 flex flex-wrap gap-3">
               {tagLabels.map((item) => (
                 <Check
                   key={item.id}
                   checked={tagIds.includes(item.id)}
                   label={item.label}
-                  onChange={() =>
-                    toggle(
-                      item.id,
-                      tagIds,
-                      setTagIds,
-                    )
-                  }
+                  onChange={() => toggle(item.id, tagIds, setTagIds)}
                 />
               ))}
             </div>
           </section>
 
-          {translations.map(
-            (translation, index) => (
-              <section
-                key={translation.locale}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
-              >
-                <h2 className="text-xl font-bold">
-                  {translation.locale}
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  pt-BR é obrigatório. Os demais
-                  idiomas podem ser preenchidos depois.
-                </p>
+          {translations.map((translation, index) => (
+            <section
+              key={translation.locale}
+              className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+            >
+              <h2 className="text-xl font-bold">{translation.locale}</h2>
 
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                  <EditorField
-                    label="Título"
-                    value={translation.title}
-                    required={
-                      translation.locale === 'pt-BR'
-                    }
-                    onChange={(value) =>
-                      updateTranslation(
-                        index,
-                        'title',
-                        value,
-                      )
-                    }
-                  />
+              <p className="mt-1 text-xs text-slate-500">
+                pt-BR é obrigatório. Os demais idiomas podem ser preenchidos depois.
+              </p>
 
-                  <EditorField
-                    label="Slug"
-                    value={translation.slug}
-                    required={
-                      translation.locale === 'pt-BR'
-                    }
-                    onChange={(value) =>
-                      updateTranslation(
-                        index,
-                        'slug',
-                        value,
-                      )
-                    }
-                  />
+              <div className="mt-5 grid gap-5 md:grid-cols-2">
+                <EditorField
+                  label="Título"
+                  value={translation.title}
+                  required={translation.locale === 'pt-BR'}
+                  onChange={(value) => updateTranslation(index, 'title', value)}
+                />
 
+                <ReadOnlySlugField value={translation.slug} />
+
+                <EditorArea
+                  label="Resumo"
+                  value={translation.summary}
+                  required={translation.locale === 'pt-BR'}
+                  onChange={(value) => updateTranslation(index, 'summary', value)}
+                />
+
+                {kind === 'projects' ? (
                   <EditorArea
-                    label="Resumo"
-                    value={translation.summary}
-                    required={
-                      translation.locale === 'pt-BR'
-                    }
-                    onChange={(value) =>
-                      updateTranslation(
-                        index,
-                        'summary',
-                        value,
-                      )
-                    }
+                    label="Descrição"
+                    value={translation.description}
+                    required={translation.locale === 'pt-BR'}
+                    onChange={(value) => updateTranslation(index, 'description', value)}
                   />
+                ) : null}
 
-                  {kind === 'projects' ? (
-                    <EditorArea
-                      label="Descrição"
-                      value={translation.description}
-                      required={
-                        translation.locale ===
-                        'pt-BR'
-                      }
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'description',
-                          value,
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {kind === 'projects' ? (
-                    <EditorArea
-                      label="Desafios"
-                      value={translation.challenges}
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'challenges',
-                          value,
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {kind === 'projects' ? (
-                    <EditorArea
-                      label="Solução"
-                      value={translation.solution}
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'solution',
-                          value,
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {kind === 'projects' ? (
-                    <EditorArea
-                      label="Resultados"
-                      value={translation.results}
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'results',
-                          value,
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {kind === 'articles' ? (
-                    <EditorArea
-                      label="Conteúdo HTML"
-                      value={translation.bodyHtml}
-                      required={
-                        translation.locale ===
-                        'pt-BR'
-                      }
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'bodyHtml',
-                          value,
-                        )
-                      }
-                      rows={12}
-                    />
-                  ) : null}
-
-                  {kind === 'news' ? (
-                    <EditorArea
-                      label="Conteúdo HTML"
-                      value={translation.contentHtml}
-                      required={
-                        translation.locale ===
-                        'pt-BR'
-                      }
-                      onChange={(value) =>
-                        updateTranslation(
-                          index,
-                          'contentHtml',
-                          value,
-                        )
-                      }
-                      rows={12}
-                    />
-                  ) : null}
-
-                  <EditorField
-                    label="SEO title"
-                    value={translation.seoTitle}
-                    onChange={(value) =>
-                      updateTranslation(
-                        index,
-                        'seoTitle',
-                        value,
-                      )
-                    }
+                {kind === 'projects' ? (
+                  <EditorArea
+                    label="Desafios"
+                    value={translation.challenges}
+                    onChange={(value) => updateTranslation(index, 'challenges', value)}
                   />
+                ) : null}
 
-                  <EditorField
-                    label="SEO description"
-                    value={
-                      translation.seoDescription
-                    }
-                    onChange={(value) =>
-                      updateTranslation(
-                        index,
-                        'seoDescription',
-                        value,
-                      )
-                    }
+                {kind === 'projects' ? (
+                  <EditorArea
+                    label="Solução"
+                    value={translation.solution}
+                    onChange={(value) => updateTranslation(index, 'solution', value)}
                   />
-                </div>
-              </section>
-            ),
-          )}
+                ) : null}
+
+                {kind === 'projects' ? (
+                  <EditorArea
+                    label="Resultados"
+                    value={translation.results}
+                    onChange={(value) => updateTranslation(index, 'results', value)}
+                  />
+                ) : null}
+
+                {kind === 'articles' ? (
+                  <EditorArea
+                    label="Conteúdo HTML"
+                    value={translation.bodyHtml}
+                    required={translation.locale === 'pt-BR'}
+                    onChange={(value) => updateTranslation(index, 'bodyHtml', value)}
+                    rows={12}
+                  />
+                ) : null}
+
+                {kind === 'news' ? (
+                  <EditorArea
+                    label="Conteúdo HTML"
+                    value={translation.contentHtml}
+                    required={translation.locale === 'pt-BR'}
+                    onChange={(value) => updateTranslation(index, 'contentHtml', value)}
+                    rows={12}
+                  />
+                ) : null}
+
+                <EditorField
+                  label="SEO title"
+                  value={translation.seoTitle}
+                  onChange={(value) => updateTranslation(index, 'seoTitle', value)}
+                />
+
+                <EditorField
+                  label="SEO description"
+                  value={translation.seoDescription}
+                  onChange={(value) => updateTranslation(index, 'seoDescription', value)}
+                />
+              </div>
+            </section>
+          ))}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
@@ -868,11 +655,7 @@ export function AdminContentEditor({
         open={successOpen}
         onClose={() => void finishSuccess()}
         variant="success"
-        title={
-          id
-            ? `${singular} atualizado.`
-            : `${singular} criado.`
-        }
+        title={id ? `${singular} atualizado.` : `${singular} criado.`}
         message={
           id
             ? `As alterações em ${singular.toLowerCase()} foram salvas com sucesso.`
@@ -888,19 +671,23 @@ function Input({
   label,
   type = 'text',
   defaultValue = '',
+  required = false,
 }: {
   name: string;
   label: string;
   type?: string;
   defaultValue?: string;
+  required?: boolean;
 }) {
   return (
     <label className="text-sm font-semibold">
       {label}
+
       <input
         name={name}
         type={type}
         defaultValue={defaultValue}
+        required={required}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
       />
     </label>
@@ -911,19 +698,26 @@ function Select({
   name,
   label,
   defaultValue,
+  value,
+  onChange,
   options,
 }: {
   name: string;
   label: string;
-  defaultValue: string;
+  defaultValue?: string;
+  value?: string;
+  onChange?: (event: React.ChangeEvent<HTMLSelectElement>) => void;
   options: string[];
 }) {
   return (
     <label className="text-sm font-semibold">
       {label}
+
       <select
         name={name}
-        defaultValue={defaultValue}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        value={value}
+        onChange={onChange}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
       >
         {options.map((option) => (
@@ -945,12 +739,34 @@ function Check({
 }) {
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-      />
+      <input type="checkbox" checked={checked} onChange={onChange} />
       {label}
+    </label>
+  );
+}
+
+function ReadOnlySlugField({ value }: { value: string }) {
+  return (
+    <label className="text-sm font-semibold">
+      Slug (URL)
+      <div className="mt-2 flex overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+        <span
+          aria-hidden="true"
+          className="border-r border-slate-700 px-3 py-3 font-normal text-slate-500"
+        >
+          /
+        </span>
+
+        <input
+          value={value}
+          readOnly
+          aria-label="Slug (URL)"
+          className="min-w-0 flex-1 bg-transparent px-4 py-3 font-normal text-slate-400 outline-none"
+        />
+      </div>
+      <span className="mt-1 block text-xs font-normal text-slate-500">
+        Gerado automaticamente a partir do título.
+      </span>
     </label>
   );
 }
@@ -969,12 +785,11 @@ function EditorField({
   return (
     <label className="text-sm font-semibold">
       {label}
+
       <input
         value={value}
         required={required}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
       />
     </label>
@@ -997,13 +812,12 @@ function EditorArea({
   return (
     <label className="text-sm font-semibold md:col-span-2">
       {label}
+
       <textarea
         value={value}
         required={required}
         rows={rows}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm font-normal"
       />
     </label>

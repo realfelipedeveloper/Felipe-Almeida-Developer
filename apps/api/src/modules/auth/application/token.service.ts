@@ -22,7 +22,9 @@ function durationToSeconds(value: string | undefined, fallbackSeconds: number): 
 function getSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET'): string {
   const value = process.env[name]?.trim();
   if (!value || value.startsWith('gere-com-') || value.length < 32) {
-    throw new Error(`${name} precisa ser configurado com um segredo forte de pelo menos 32 caracteres.`);
+    throw new Error(
+      `${name} precisa ser configurado com um segredo forte de pelo menos 32 caracteres.`,
+    );
   }
   return value;
 }

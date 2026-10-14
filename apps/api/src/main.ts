@@ -30,10 +30,7 @@ async function bootstrap() {
   const bodyLimit = resolveBodyLimit();
 
   const expressApp = app.getHttpAdapter().getInstance();
-  if (
-    process.env.TRUST_PROXY === 'true' &&
-    typeof expressApp?.set === 'function'
-  ) {
+  if (process.env.TRUST_PROXY === 'true' && typeof expressApp?.set === 'function') {
     expressApp.set('trust proxy', 1);
   }
 
@@ -48,13 +45,7 @@ async function bootstrap() {
     origin: resolveAllowedOrigins(),
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'X-CSRF-Token',
-      'X-Correlation-Id',
-    ],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-CSRF-Token', 'X-Correlation-Id'],
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -78,9 +69,7 @@ async function bootstrap() {
   }
 
   await app.listen(port, '0.0.0.0');
-  logger
-    .child('app')
-    .info({ porta: port }, `API disponível em http://localhost:${port}/api`);
+  logger.child('app').info({ porta: port }, `API disponível em http://localhost:${port}/api`);
 
   if (shouldEnableSwagger()) {
     logger

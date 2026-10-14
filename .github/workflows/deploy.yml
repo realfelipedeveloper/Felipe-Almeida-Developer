@@ -24,13 +24,23 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
 
     steps:
       - name: Baixar main validada
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Fixar versão validada
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "Preparando exatamente o commit validado: $SHA"
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -55,6 +65,22 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
         run: pnpm build
 
+      - name: Gerar imagens de produção
+        shell: bash
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3333' }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.short_sha }}"
+          docker build --target api -t "fad-api:$TAG" .
+          docker build --target worker -t "fad-worker:$TAG" .
+          docker build --target web \
+            --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+            --build-arg NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
+            -t "fad-web:$TAG" .
+          docker save "fad-api:$TAG" "fad-worker:$TAG" "fad-web:$TAG" | gzip -9 > "imagens-$TAG.tar.gz"
+
       - name: Empacotar artefatos
         shell: bash
         run: |
@@ -71,18 +97,26 @@ jobs:
           cp pnpm-lock.yaml entrega/
           cp pnpm-workspace.yaml entrega/
 
-          tar -czf felipe-almeida-developer-${GITHUB_SHA::7}.tar.gz entrega
+          tar -czf felipe-almeida-developer-${{ steps.version.outputs.short_sha }}.tar.gz entrega
 
       - name: Publicar artefato de entrega
         uses: actions/upload-artifact@v4
         with:
-          name: entrega-${{ github.sha }}
+          name: entrega-${{ steps.version.outputs.sha }}
           path: felipe-almeida-developer-*.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publicar imagens de produção
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagens-${{ steps.version.outputs.sha }}
+          path: imagens-*.tar.gz
           retention-days: 14
           if-no-files-found: error
 
       - name: Informar estado do deploy
         shell: bash
         run: |
-          echo "Artefato de entrega gerado com sucesso."
+          echo "Artefatos e imagens de produção gerados com sucesso."
           echo "A implantação automática no provedor de produção será ativada quando o destino de hospedagem for definido."

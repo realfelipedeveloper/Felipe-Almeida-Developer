@@ -59,7 +59,9 @@ export class AuthService implements OnModuleInit {
 
     if (!admin || !admin.active || !validPassword) {
       await this.registerFailedLogin(email, ip);
-      this.logger.child('seguranca').warn({ emailHash: this.hashIdentifier(email) }, 'Falha de login administrativo');
+      this.logger
+        .child('seguranca')
+        .warn({ emailHash: this.hashIdentifier(email) }, 'Falha de login administrativo');
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
@@ -71,20 +73,19 @@ export class AuthService implements OnModuleInit {
     return result;
   }
 
-  async requestPasswordReset(
-    emailValue: string,
-    ip?: string,
-  ): Promise<{ message: string }> {
+  async requestPasswordReset(emailValue: string, ip?: string): Promise<{ message: string }> {
     const email = emailValue.trim().toLowerCase();
     await this.assertPasswordResetAllowed(email, ip);
 
     const admin = await this.repository.findAdminByEmail(email);
 
     if (!admin?.active) {
-      this.logger.child('seguranca').info(
-        { emailHash: this.hashIdentifier(email) },
-        'Recuperação de senha solicitada para conta inexistente ou inativa',
-      );
+      this.logger
+        .child('seguranca')
+        .info(
+          { emailHash: this.hashIdentifier(email) },
+          'Recuperação de senha solicitada para conta inexistente ou inativa',
+        );
       return { message: PASSWORD_RESET_RESPONSE };
     }
 
@@ -124,20 +125,21 @@ export class AuthService implements OnModuleInit {
         },
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          actorAdminId: null,
-          action: 'AUTH_PASSWORD_RESET_REQUESTED',
-          resourceType: 'AdminUser',
-          resourceId: admin.id,
-          ipHash: ip ? this.hashIdentifier(ip) : null,
-        },
-      }).catch(() => undefined);
+      await this.prisma.auditLog
+        .create({
+          data: {
+            actorAdminId: null,
+            action: 'AUTH_PASSWORD_RESET_REQUESTED',
+            resourceType: 'AdminUser',
+            resourceId: admin.id,
+            ipHash: ip ? this.hashIdentifier(ip) : null,
+          },
+        })
+        .catch(() => undefined);
 
-      this.logger.child('seguranca').info(
-        { adminId: admin.id },
-        'Recuperação de senha administrativa solicitada',
-      );
+      this.logger
+        .child('seguranca')
+        .info({ adminId: admin.id }, 'Recuperação de senha administrativa solicitada');
     } catch (error) {
       await Promise.all([
         this.deleteRedisValueIfMatches(resetKey, resetValue),
@@ -156,10 +158,7 @@ export class AuthService implements OnModuleInit {
     return { message: PASSWORD_RESET_RESPONSE };
   }
 
-  async resetPassword(
-    token: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
     const parsed = this.parsePasswordResetToken(token);
     if (!parsed) {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
@@ -183,10 +182,7 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
     }
 
-    const validSignature = await this.passwords.verify(
-      resetEntry.signatureHash,
-      parsed.signature,
-    );
+    const validSignature = await this.passwords.verify(resetEntry.signatureHash, parsed.signature);
     if (!validSignature) {
       throw new BadRequestException(INVALID_PASSWORD_RESET_TOKEN);
     }
@@ -217,24 +213,22 @@ export class AuthService implements OnModuleInit {
     });
     await this.repository.revokeAllSessions(account.id, new Date());
 
-    await this.deleteRedisValueIfMatches(
-      this.passwordResetActiveKey(account.id),
-      parsed.tokenId,
-    );
+    await this.deleteRedisValueIfMatches(this.passwordResetActiveKey(account.id), parsed.tokenId);
 
-    await this.prisma.auditLog.create({
-      data: {
-        actorAdminId: null,
-        action: 'AUTH_PASSWORD_RESET_COMPLETED',
-        resourceType: 'AdminUser',
-        resourceId: account.id,
-      },
-    }).catch(() => undefined);
+    await this.prisma.auditLog
+      .create({
+        data: {
+          actorAdminId: null,
+          action: 'AUTH_PASSWORD_RESET_COMPLETED',
+          resourceType: 'AdminUser',
+          resourceId: account.id,
+        },
+      })
+      .catch(() => undefined);
 
-    this.logger.child('seguranca').warn(
-      { adminId: account.id },
-      'Senha administrativa redefinida por recuperação',
-    );
+    this.logger
+      .child('seguranca')
+      .warn({ adminId: account.id }, 'Senha administrativa redefinida por recuperação');
 
     return {
       message: 'Senha redefinida com sucesso. Entre novamente com a nova senha.',
@@ -305,7 +299,8 @@ export class AuthService implements OnModuleInit {
     if (!validCurrent) throw new BadRequestException('Senha atual incorreta.');
 
     const samePassword = await this.passwords.verify(account.passwordHash, newPassword);
-    if (samePassword) throw new BadRequestException('A nova senha deve ser diferente da senha atual.');
+    if (samePassword)
+      throw new BadRequestException('A nova senha deve ser diferente da senha atual.');
 
     const passwordHash = await this.passwords.hash(newPassword);
     await this.repository.updatePassword({
@@ -365,9 +360,7 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  private parsePasswordResetToken(
-    token: string,
-  ): { tokenId: string; signature: string } | null {
+  private parsePasswordResetToken(token: string): { tokenId: string; signature: string } | null {
     const parts = token.split('.');
     if (parts.length !== 2) return null;
 
@@ -480,9 +473,7 @@ export class AuthService implements OnModuleInit {
   }
 
   private passwordResetAttemptKey(email: string, ip?: string): string {
-    return `auth:admin:recuperacao:tentativas:${this.hashIdentifier(
-      `${email}:${ip ?? 'sem-ip'}`,
-    )}`;
+    return `auth:admin:recuperacao:tentativas:${this.hashIdentifier(`${email}:${ip ?? 'sem-ip'}`)}`;
   }
 
   private async assertLoginAllowed(email: string, ip?: string): Promise<void> {
@@ -496,7 +487,9 @@ export class AuthService implements OnModuleInit {
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.child('seguranca').warn('Rate limit de login indisponível; autenticação seguirá com os demais controles.');
+      this.logger
+        .child('seguranca')
+        .warn('Rate limit de login indisponível; autenticação seguirá com os demais controles.');
     }
   }
 
@@ -515,9 +508,11 @@ export class AuthService implements OnModuleInit {
       }
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.child('seguranca').warn(
-        'Rate limit de recuperação de senha indisponível; a solicitação seguirá sem revelar a existência da conta.',
-      );
+      this.logger
+        .child('seguranca')
+        .warn(
+          'Rate limit de recuperação de senha indisponível; a solicitação seguirá sem revelar a existência da conta.',
+        );
     }
   }
 
@@ -545,20 +540,25 @@ export class AuthService implements OnModuleInit {
     resourceType: string,
     resourceId?: string,
   ): Promise<void> {
-    await this.prisma.auditLog.create({
-      data: { actorAdminId, action, resourceType, resourceId: resourceId ?? null },
-    }).catch(() => undefined);
+    await this.prisma.auditLog
+      .create({
+        data: { actorAdminId, action, resourceType, resourceId: resourceId ?? null },
+      })
+      .catch(() => undefined);
   }
 
   private async bootstrapFirstAdmin(): Promise<void> {
     const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
     const password = process.env.ADMIN_INITIAL_PASSWORD;
 
-    if (!email || email.startsWith('todo@') || !password || password === 'troque-no-primeiro-login') return;
+    if (!email || email.startsWith('todo@') || !password || password === 'troque-no-primeiro-login')
+      return;
     if (await this.repository.countAdmins()) return;
 
     if (password.length < 4) {
-      this.logger.child('seguranca').warn('ADMIN_INITIAL_PASSWORD ignorada: utilize pelo menos 4 caracteres.');
+      this.logger
+        .child('seguranca')
+        .warn('ADMIN_INITIAL_PASSWORD ignorada: utilize pelo menos 4 caracteres.');
       return;
     }
 
@@ -568,9 +568,11 @@ export class AuthService implements OnModuleInit {
       passwordHash,
       role: 'SUPER_ADMIN',
     });
-    this.logger.child('seguranca').warn(
-      { adminId: admin.id },
-      'Primeiro SUPER_ADMIN criado a partir das variáveis de ambiente. Troque a senha no primeiro login.',
-    );
+    this.logger
+      .child('seguranca')
+      .warn(
+        { adminId: admin.id },
+        'Primeiro SUPER_ADMIN criado a partir das variáveis de ambiente. Troque a senha no primeiro login.',
+      );
   }
 }
