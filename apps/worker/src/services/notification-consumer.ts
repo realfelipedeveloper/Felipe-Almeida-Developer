@@ -1,6 +1,7 @@
 import { NewsletterTokenPurpose, Prisma, PrismaClient, PrivacyRequestStatus } from '@prisma/client';
 import { createHmac } from 'node:crypto';
 import type { ConsumeMessage } from 'amqplib';
+import { convert } from 'html-to-text';
 import { parseEventEnvelope } from '../domain/event-envelope.js';
 import { RabbitConnection } from '../infra/rabbitmq.js';
 import { logger } from '../infra/logger.js';
@@ -515,16 +516,13 @@ export class NotificationConsumer {
   }
 
   private plainText(value: string): string {
-    return value
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .trim();
+    return convert(value, {
+      wordwrap: false,
+      selectors: [
+        { selector: 'a', options: { ignoreHref: true } },
+        { selector: 'img', format: 'skip' },
+      ],
+    }).trim();
   }
 
   private deriveToken(

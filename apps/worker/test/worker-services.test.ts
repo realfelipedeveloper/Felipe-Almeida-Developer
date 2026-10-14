@@ -519,6 +519,7 @@ test('NotificationConsumer deriva token determinístico e escapa HTML', () => {
     derivePasswordResetToken: (tokenId: string, adminUserId: string) => string;
     derivePrivacyToken: (requestId: string, type: 'EXPORT' | 'DELETE') => string;
     escape: (value: string) => string;
+    plainText: (value: string) => string;
     locale: (value: unknown) => 'pt-BR' | 'en' | 'es';
   };
 
@@ -549,6 +550,11 @@ test('NotificationConsumer deriva token determinístico e escapa HTML', () => {
     internals.escape('<script>"x"&</script>'),
     '&lt;script&gt;&quot;x&quot;&amp;&lt;/script&gt;',
   );
+  assert.equal(
+    internals.plainText('<p>Seguro &amp; legível</p><script>alert(1)</script>'),
+    'Seguro & legível',
+  );
+  assert.equal(internals.plainText('&lt;script&gt;texto&lt;/script&gt;'), '<script>texto</script>');
   assert.equal(internals.locale('xx'), 'pt-BR');
 });
 
