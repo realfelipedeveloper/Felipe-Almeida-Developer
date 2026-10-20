@@ -41,9 +41,7 @@ export function pageMetadata(input: {
             absoluteUrl(localizedPath(locale as Locale, localePath)),
           ]),
         ),
-        'x-default': absoluteUrl(
-          localizedPath('pt-BR', input.languagePaths['pt-BR'] ?? path),
-        ),
+        'x-default': absoluteUrl(localizedPath('pt-BR', input.languagePaths['pt-BR'] ?? path)),
       }
     : languageAlternates(path);
 

@@ -2,16 +2,8 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  adminFetch,
-  AdminApiError,
-  type AdminIdentity,
-} from '@/lib/admin/admin-api';
-import {
-  AdminConfirmModal,
-  AdminFeedbackModal,
-  AdminModal,
-} from './admin-modal';
+import { adminFetch, AdminApiError, type AdminIdentity } from '@/lib/admin/admin-api';
+import { AdminConfirmModal, AdminFeedbackModal, AdminModal } from './admin-modal';
 
 export function AdminSecurityForm() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -74,8 +66,7 @@ export function AdminSecurityForm() {
       setFeedback({
         variant: 'success',
         title: 'Senha alterada.',
-        message:
-          'A senha foi atualizada e as sessões anteriores foram revogadas.',
+        message: 'A senha foi atualizada e as sessões anteriores foram revogadas.',
       });
       router.refresh();
     } catch (cause) {
@@ -83,9 +74,7 @@ export function AdminSecurityForm() {
         variant: 'error',
         title: 'Não foi possível alterar a senha.',
         message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Não foi possível alterar a senha.',
+          cause instanceof AdminApiError ? cause.message : 'Não foi possível alterar a senha.',
       });
     } finally {
       setBusy(false);
@@ -121,20 +110,16 @@ export function AdminSecurityForm() {
     <>
       <div className="max-w-3xl">
         <p className="eyebrow">ADMIN / SEGURANÇA</p>
-        <h1 className="mt-3 text-4xl font-black tracking-tight">
-          Segurança
-        </h1>
+        <h1 className="mt-3 text-4xl font-black tracking-tight">Segurança</h1>
         <p className="mt-3 text-sm leading-6 text-slate-400">
-          Gerencie credenciais e sessões administrativas por meio de
-          ações protegidas.
+          Gerencie credenciais e sessões administrativas por meio de ações protegidas.
         </p>
 
         <div className={`mt-8 grid gap-4 ${canLogoutAll ? 'md:grid-cols-2' : ''}`}>
           <section className="site-panel p-6">
             <h2 className="text-xl font-bold">Senha administrativa</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Altere sua senha atual. A operação revoga as sessões
-              anteriores.
+              Altere sua senha atual. A operação revoga as sessões anteriores.
             </p>
             <button
               type="button"
@@ -149,8 +134,8 @@ export function AdminSecurityForm() {
             <section className="site-panel p-6">
               <h2 className="text-xl font-bold">Sessões ativas</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                Encerre todas as sessões administrativas quando houver
-                necessidade de revogação global.
+                Encerre todas as sessões administrativas quando houver necessidade de revogação
+                global.
               </p>
               <button
                 type="button"
@@ -182,9 +167,7 @@ export function AdminSecurityForm() {
             <input
               type="password"
               value={currentPassword}
-              onChange={(event) =>
-                setCurrentPassword(event.target.value)
-              }
+              onChange={(event) => setCurrentPassword(event.target.value)}
               required
               autoComplete="current-password"
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-normal"
@@ -196,9 +179,7 @@ export function AdminSecurityForm() {
             <input
               type="password"
               value={newPassword}
-              onChange={(event) =>
-                setNewPassword(event.target.value)
-              }
+              onChange={(event) => setNewPassword(event.target.value)}
               required
               minLength={4}
               autoComplete="new-password"
@@ -219,9 +200,7 @@ export function AdminSecurityForm() {
             />
           </label>
 
-          <p className="text-xs leading-5 text-slate-500">
-            Use no mínimo 4 caracteres.
-          </p>
+          <p className="text-xs leading-5 text-slate-500">Use no mínimo 4 caracteres.</p>
 
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button

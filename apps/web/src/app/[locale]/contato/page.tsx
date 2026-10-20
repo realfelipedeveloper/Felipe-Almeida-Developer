@@ -23,11 +23,7 @@ export async function generateMetadata({
   });
 }
 
-export default async function ContactPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export default async function ContactPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   if (!isLocale(rawLocale)) return null;
 
@@ -40,11 +36,7 @@ export default async function ContactPage({
 
   return (
     <main>
-      <PageHero
-        eyebrow={t('eyebrow')}
-        title={t('title')}
-        description={t('intro')}
-      />
+      <PageHero eyebrow={t('eyebrow')} title={t('title')} description={t('intro')} />
 
       <section className="mx-auto grid max-w-7xl gap-6 px-5 pb-24 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="site-panel p-6 md:p-8">
@@ -95,9 +87,7 @@ export default async function ContactPage({
             ))}
 
             {!profile?.publicEmail && !links.length ? (
-              <p className="text-sm leading-6 text-zinc-400">
-                {t('noChannels')}
-              </p>
+              <p className="text-sm leading-6 text-zinc-400">{t('noChannels')}</p>
             ) : null}
           </div>
         </aside>

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  type ReactNode,
-  useEffect,
-  useId,
-  useRef,
-} from 'react';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -86,10 +81,7 @@ export function AdminModal({
               {title}
             </h2>
             {description ? (
-              <p
-                id={descriptionId}
-                className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400"
-              >
+              <p id={descriptionId} className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
                 {description}
               </p>
             ) : null}
@@ -108,9 +100,7 @@ export function AdminModal({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-7">
-          {children}
-        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-7">{children}</div>
       </section>
     </div>
   );
@@ -134,22 +124,19 @@ export function AdminFeedbackModal({
       eyebrow: 'AÇÃO CONCLUÍDA',
       title: 'Tudo certo.',
       icon: '✓',
-      iconClass:
-        'border-emerald-400/20 bg-emerald-400/10 text-emerald-300',
+      iconClass: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300',
     },
     error: {
       eyebrow: 'NÃO FOI POSSÍVEL CONCLUIR',
       title: 'Ocorreu um problema.',
       icon: '!',
-      iconClass:
-        'border-red-400/20 bg-red-400/10 text-red-300',
+      iconClass: 'border-red-400/20 bg-red-400/10 text-red-300',
     },
     info: {
       eyebrow: 'INFORMAÇÃO',
       title: 'Atenção.',
       icon: 'i',
-      iconClass:
-        'border-zinc-400/20 bg-zinc-400/10 text-zinc-200',
+      iconClass: 'border-zinc-400/20 bg-zinc-400/10 text-zinc-200',
     },
   } as const;
 
@@ -170,9 +157,7 @@ export function AdminFeedbackModal({
         {copy.icon}
       </div>
 
-      <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-zinc-300">
-        {message}
-      </p>
+      <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-zinc-300">{message}</p>
 
       <button
         type="button"

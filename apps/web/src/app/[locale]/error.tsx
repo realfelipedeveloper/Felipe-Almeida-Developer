@@ -11,19 +11,13 @@ export default function ErrorPage({
   const t = useTranslations('common');
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-4xl flex-col justify-center px-5 py-16">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-500">
-        {t('errorLabel')}
+    <main className="mx-auto flex min-h-[75vh] max-w-5xl flex-col justify-center px-5 py-16">
+      <p className="eyebrow text-rose-400">{t('errorLabel')}</p>
+      <h1 className="page-hero-title mt-7 text-[clamp(3rem,7vw,6rem)]">{t('errorTitle')}</h1>
+      <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">
+        {t('errorDescription')}
       </p>
-      <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950 dark:text-white">
-        {t('errorTitle')}
-      </h1>
-      <p className="mt-4 text-slate-600 dark:text-slate-300">{t('errorDescription')}</p>
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-7 w-fit rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
-      >
+      <button type="button" onClick={reset} className="btn-primary mt-8 w-fit">
         {t('retry')}
       </button>
     </main>

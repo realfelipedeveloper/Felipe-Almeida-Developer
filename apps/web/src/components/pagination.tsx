@@ -29,18 +29,21 @@ export function Pagination({
   };
 
   return (
-    <nav className="mt-10 flex items-center justify-between gap-4 border-t border-slate-200 pt-6 dark:border-slate-800" aria-label="Paginação">
+    <nav
+      className="mt-12 flex items-center justify-between gap-4 border-t border-[var(--border)] pt-7"
+      aria-label="Paginação"
+    >
       <div>
         {page > 1 ? (
-          <Link href={href(page - 1)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold dark:border-slate-700">
+          <Link href={href(page - 1)} className="btn-secondary min-h-0 px-4 py-2">
             ← {previousLabel}
           </Link>
         ) : null}
       </div>
-      <span className="text-sm text-slate-500 dark:text-slate-400">{pageLabel}</span>
+      <span className="font-mono text-xs text-[var(--subtle)]">{pageLabel}</span>
       <div>
         {page < totalPages ? (
-          <Link href={href(page + 1)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold dark:border-slate-700">
+          <Link href={href(page + 1)} className="btn-secondary min-h-0 px-4 py-2">
             {nextLabel} →
           </Link>
         ) : null}

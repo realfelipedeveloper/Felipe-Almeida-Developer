@@ -1,26 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  adminFetch,
-  AdminApiError,
-} from '@/lib/admin/admin-api';
-import {
-  AdminFeedbackModal,
-  AdminModal,
-} from './admin-modal';
+import { adminFetch, AdminApiError } from '@/lib/admin/admin-api';
+import { AdminFeedbackModal, AdminModal } from './admin-modal';
 
-type ContactStatus =
-  | 'NEW'
-  | 'IN_PROGRESS'
-  | 'RESOLVED'
-  | 'SPAM';
+type ContactStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'SPAM';
 
-type NewsletterStatus =
-  | 'PENDING'
-  | 'ACTIVE'
-  | 'UNSUBSCRIBED'
-  | 'BOUNCED';
+type NewsletterStatus = 'PENDING' | 'ACTIVE' | 'UNSUBSCRIBED' | 'BOUNCED';
 
 interface ContactRow {
   id: string;
@@ -44,34 +30,19 @@ interface SubscriberRow {
 
 type EngagementRow = ContactRow | SubscriberRow;
 
-const contactStatuses: ContactStatus[] = [
-  'NEW',
-  'IN_PROGRESS',
-  'RESOLVED',
-  'SPAM',
-];
+const contactStatuses: ContactStatus[] = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'SPAM'];
 
-const newsletterStatuses: NewsletterStatus[] = [
-  'PENDING',
-  'ACTIVE',
-  'UNSUBSCRIBED',
-  'BOUNCED',
-];
+const newsletterStatuses: NewsletterStatus[] = ['PENDING', 'ACTIVE', 'UNSUBSCRIBED', 'BOUNCED'];
 
 function formatDate(value: string | null) {
   if (!value) return 'Não informado';
   return new Date(value).toLocaleString('pt-BR');
 }
 
-export function AdminEngagementList({
-  kind,
-}: {
-  kind: 'contacts' | 'newsletter';
-}) {
+export function AdminEngagementList({ kind }: { kind: 'contacts' | 'newsletter' }) {
   const [rows, setRows] = useState<EngagementRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] =
-    useState<EngagementRow | null>(null);
+  const [selected, setSelected] = useState<EngagementRow | null>(null);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -84,18 +55,14 @@ export function AdminEngagementList({
     setLoading(true);
 
     try {
-      const data = await adminFetch<EngagementRow[]>(
-        `/api/admin/engagement/${kind}`,
-      );
+      const data = await adminFetch<EngagementRow[]>(`/api/admin/engagement/${kind}`);
       setRows(data);
     } catch (cause) {
       setFeedback({
         variant: 'error',
         title: 'Não foi possível carregar os dados.',
         message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Não foi possível carregar os dados.',
+          cause instanceof AdminApiError ? cause.message : 'Não foi possível carregar os dados.',
       });
     } finally {
       setLoading(false);
@@ -117,13 +84,10 @@ export function AdminEngagementList({
     setSaving(true);
 
     try {
-      await adminFetch(
-        `/api/admin/engagement/${kind}/${selected.id}/status`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ status }),
-        },
-      );
+      await adminFetch(`/api/admin/engagement/${kind}/${selected.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
 
       setSelected(null);
       await load();
@@ -140,9 +104,7 @@ export function AdminEngagementList({
         variant: 'error',
         title: 'Não foi possível atualizar o status.',
         message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Não foi possível atualizar o status.',
+          cause instanceof AdminApiError ? cause.message : 'Não foi possível atualizar o status.',
       });
     } finally {
       setSaving(false);
@@ -150,18 +112,14 @@ export function AdminEngagementList({
   }
 
   if (loading) {
-    return (
-      <p className="text-sm text-zinc-500">Carregando…</p>
-    );
+    return <p className="text-sm text-zinc-500">Carregando…</p>;
   }
 
   return (
     <>
       <div className="space-y-3">
         {!rows.length ? (
-          <div className="site-panel p-6 text-sm text-zinc-500">
-            Nenhum registro encontrado.
-          </div>
+          <div className="site-panel p-6 text-sm text-zinc-500">Nenhum registro encontrado.</div>
         ) : null}
 
         {rows.map((row) => {
@@ -174,12 +132,8 @@ export function AdminEngagementList({
                 className="site-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="eyebrow">
-                    {formatDate(contact.createdAt)}
-                  </p>
-                  <h2 className="mt-2 truncate text-lg font-bold">
-                    {contact.subject}
-                  </h2>
+                  <p className="eyebrow">{formatDate(contact.createdAt)}</p>
+                  <h2 className="mt-2 truncate text-lg font-bold">{contact.subject}</h2>
                   <p className="mt-1 truncate text-sm text-zinc-400">
                     {contact.name} · {contact.email}
                   </p>
@@ -207,12 +161,9 @@ export function AdminEngagementList({
               className="site-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <p className="truncate font-semibold">
-                  {subscriber.email}
-                </p>
+                <p className="truncate font-semibold">{subscriber.email}</p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {subscriber.locale} ·{' '}
-                  {formatDate(subscriber.createdAt)}
+                  {subscriber.locale} · {formatDate(subscriber.createdAt)}
                 </p>
                 <p className="mt-2 text-xs font-semibold text-zinc-500">
                   Status: {subscriber.status}
@@ -236,16 +187,8 @@ export function AdminEngagementList({
         onClose={() => {
           if (!saving) setSelected(null);
         }}
-        eyebrow={
-          kind === 'contacts'
-            ? 'ADMIN / CONTATOS'
-            : 'ADMIN / NEWSLETTER'
-        }
-        title={
-          kind === 'contacts'
-            ? 'Visualizar contato'
-            : 'Visualizar inscrito'
-        }
+        eyebrow={kind === 'contacts' ? 'ADMIN / CONTATOS' : 'ADMIN / NEWSLETTER'}
+        title={kind === 'contacts' ? 'Visualizar contato' : 'Visualizar inscrito'}
         description="Os dados e campos de manutenção deste registro ficam concentrados no modal."
         size="md"
         closeOnBackdrop={!saving}
@@ -312,23 +255,14 @@ function ContactFields({
     <div className="grid gap-5 md:grid-cols-2">
       <ReadOnlyField label="Nome" value={contact.name} />
       <ReadOnlyField label="E-mail" value={contact.email} />
-      <ReadOnlyField
-        label="Assunto"
-        value={contact.subject}
-        full
-      />
-      <ReadOnlyField
-        label="Recebido em"
-        value={formatDate(contact.createdAt)}
-      />
+      <ReadOnlyField label="Assunto" value={contact.subject} full />
+      <ReadOnlyField label="Recebido em" value={formatDate(contact.createdAt)} />
 
       <label className="text-sm font-semibold">
         Status
         <select
           value={status}
-          onChange={(event) =>
-            onStatusChange(event.target.value)
-          }
+          onChange={(event) => onStatusChange(event.target.value)}
           className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal"
         >
           {contactStatuses.map((item) => (
@@ -363,35 +297,17 @@ function SubscriberFields({
 }) {
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <ReadOnlyField
-        label="E-mail"
-        value={subscriber.email}
-        full
-      />
-      <ReadOnlyField
-        label="Idioma"
-        value={subscriber.locale}
-      />
-      <ReadOnlyField
-        label="Cadastro"
-        value={formatDate(subscriber.createdAt)}
-      />
-      <ReadOnlyField
-        label="Confirmação"
-        value={formatDate(subscriber.confirmedAt)}
-      />
-      <ReadOnlyField
-        label="Cancelamento"
-        value={formatDate(subscriber.unsubscribedAt)}
-      />
+      <ReadOnlyField label="E-mail" value={subscriber.email} full />
+      <ReadOnlyField label="Idioma" value={subscriber.locale} />
+      <ReadOnlyField label="Cadastro" value={formatDate(subscriber.createdAt)} />
+      <ReadOnlyField label="Confirmação" value={formatDate(subscriber.confirmedAt)} />
+      <ReadOnlyField label="Cancelamento" value={formatDate(subscriber.unsubscribedAt)} />
 
       <label className="text-sm font-semibold md:col-span-2">
         Status
         <select
           value={status}
-          onChange={(event) =>
-            onStatusChange(event.target.value)
-          }
+          onChange={(event) => onStatusChange(event.target.value)}
           className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-normal"
         >
           {newsletterStatuses.map((item) => (
@@ -415,11 +331,7 @@ function ReadOnlyField({
   full?: boolean;
 }) {
   return (
-    <label
-      className={`text-sm font-semibold ${
-        full ? 'md:col-span-2' : ''
-      }`}
-    >
+    <label className={`text-sm font-semibold ${full ? 'md:col-span-2' : ''}`}>
       {label}
       <input
         readOnly

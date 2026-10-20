@@ -8,6 +8,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  allowedDevOrigins: ['127.0.0.1'],
   // O standalone depende de symlinks que o Windows sem Developer Mode bloqueia.
   // CI e imagens Linux continuam produzindo o artefato mínimo de produção.
   output: process.platform === 'win32' ? undefined : 'standalone',

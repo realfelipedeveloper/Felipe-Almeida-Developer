@@ -74,11 +74,7 @@ export function SuccessModal({
                 strokeWidth="2"
                 aria-hidden="true"
               >
-                <path
-                  d="m5 12 4 4L19 6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <path d="m5 12 4 4L19 6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
 
@@ -106,10 +102,7 @@ export function SuccessModal({
             {title}
           </h2>
 
-          <p
-            id={descriptionId}
-            className="mt-4 text-sm leading-7 text-zinc-400"
-          >
+          <p id={descriptionId} className="mt-4 text-sm leading-7 text-zinc-400">
             {message}
           </p>
 

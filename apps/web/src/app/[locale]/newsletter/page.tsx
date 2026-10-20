@@ -21,11 +21,7 @@ export async function generateMetadata({
   });
 }
 
-export default async function NewsletterPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export default async function NewsletterPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   if (!isLocale(rawLocale)) return null;
 
@@ -34,11 +30,7 @@ export default async function NewsletterPage({
 
   return (
     <main>
-      <PageHero
-        eyebrow={t('eyebrow')}
-        title={t('title')}
-        description={t('intro')}
-      />
+      <PageHero eyebrow={t('eyebrow')} title={t('title')} description={t('intro')} />
 
       <section className="mx-auto max-w-4xl px-5 pb-24">
         <div className="site-panel relative overflow-hidden p-7 md:p-10">
@@ -58,15 +50,9 @@ export default async function NewsletterPage({
               ))}
             </div>
 
-            <NewsletterForm
-              locale={locale}
-              emailLabel={t('email')}
-              submitLabel={t('subscribe')}
-            />
+            <NewsletterForm locale={locale} emailLabel={t('email')} submitLabel={t('subscribe')} />
 
-            <p className="mt-5 text-xs leading-5 text-zinc-500">
-              {t('privacy')}
-            </p>
+            <p className="mt-5 text-xs leading-5 text-zinc-500">{t('privacy')}</p>
           </div>
         </div>
       </section>
