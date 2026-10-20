@@ -6,16 +6,15 @@ export default async function NotFound() {
   const t = await getTranslations('common');
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-4xl flex-col justify-center px-5 py-16">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">404</p>
-      <h1 className="mt-4 text-5xl font-black tracking-[-0.05em] text-slate-950 dark:text-white">
-        {t('notFound')}
-      </h1>
-      <p className="mt-4 text-slate-600 dark:text-slate-300">{t('notFoundDescription')}</p>
-      <Link
-        href={`/${locale}`}
-        className="mt-7 w-fit rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
-      >
+    <main className="mx-auto flex min-h-[75vh] max-w-5xl flex-col justify-center px-5 py-16">
+      <p className="font-mono text-[clamp(5rem,18vw,12rem)] font-black leading-none tracking-[-0.09em] text-[var(--accent-soft)]">
+        404
+      </p>
+      <h1 className="page-hero-title -mt-6 text-[clamp(3rem,7vw,6rem)]">{t('notFound')}</h1>
+      <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">
+        {t('notFoundDescription')}
+      </p>
+      <Link href={`/${locale}`} className="btn-primary mt-8 w-fit">
         {t('backHome')}
       </Link>
     </main>

@@ -95,6 +95,26 @@ test('abre a navegação completa em viewport mobile', async ({ page }) => {
   ).toBeVisible();
 });
 
+test('apresenta a nova composição editorial sem overflow horizontal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/pt-BR');
+
+  await expect(page.locator('[data-ui="portfolio-shell"]')).toBeVisible();
+  await expect(page.locator('[data-ui="home-hero"]')).toBeVisible();
+  await expect(page.locator('[data-ui="featured-work"]')).toBeVisible();
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
+test('organiza a página Sobre como narrativa editorial', async ({ page }) => {
+  await page.goto('/pt-BR/sobre');
+  await expect(page.locator('[data-ui="about-story"]')).toBeVisible();
+  await expect(page.getByRole('main')).toBeVisible();
+});
+
 test('carrega analytics somente após consentimento e permite revogação', async ({ page }) => {
   const analyticsRequests: string[] = [];
   page.on('request', (request) => {

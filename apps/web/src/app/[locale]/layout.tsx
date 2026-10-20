@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/icon.svg',
   },
 };
 
@@ -43,7 +43,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className="dark" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className="portfolio-shell antialiased" data-ui="portfolio-shell">
         <NextIntlClientProvider messages={messages}>
           <SiteHeader
             locale={locale}

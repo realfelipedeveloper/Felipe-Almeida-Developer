@@ -54,7 +54,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const summary = cleanSeedText(profile?.summary, tHero('fallbackSummary'));
 
   return (
-    <main>
+    <main className="overflow-hidden">
       <JsonLd
         data={{
           '@context': 'https://schema.org',
@@ -70,19 +70,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         }}
       />
 
-      <section className="mx-auto grid min-h-[82vh] max-w-7xl items-center gap-14 px-5 py-16 md:grid-cols-[1.08fr_0.92fr] md:py-20">
+      <section
+        data-ui="home-hero"
+        className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-14 px-5 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:py-20"
+      >
         <div className="relative z-10">
           <p className="eyebrow">{tHero('eyebrow')}</p>
 
-          <h1 className="display-title mt-6 max-w-4xl text-5xl sm:text-6xl md:text-[5.25rem]">
+          <h1 className="display-title mt-7 max-w-4xl text-[clamp(3.7rem,9vw,7.6rem)]">
             <span className="text-gradient">{fullName}</span>
           </h1>
 
-          <p className="mt-5 max-w-2xl text-xl font-semibold tracking-[-0.02em] text-zinc-700 dark:text-zinc-200">
+          <p className="mt-6 max-w-2xl text-xl font-semibold tracking-[-0.025em] text-[var(--text)] md:text-2xl">
             {headline}
           </p>
 
-          <p className="mt-6 max-w-2xl text-base leading-8 text-zinc-600 md:text-lg dark:text-zinc-400">
+          <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] md:text-lg">
             {summary}
           </p>
 
@@ -102,7 +105,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
           </div>
 
-          <div className="mt-9 inline-flex items-center gap-3 rounded-full border border-zinc-200 bg-white/50 px-4 py-2 text-xs dark:border-white/[0.08] dark:bg-white/[0.025]">
+          <div className="mt-10 inline-flex items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2.5 text-xs backdrop-blur-lg">
             <span
               className={`h-2 w-2 rounded-full ${
                 profile?.availableForWork === false
@@ -110,16 +113,32 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   : 'bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,.65)]'
               }`}
             />
-            <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+            <span className="font-semibold text-[var(--muted)]">
               {profile?.availableForWork === false
                 ? tAvailability('unavailable')
                 : tAvailability('available')}
             </span>
           </div>
+
+          <div className="mt-9 grid max-w-2xl grid-cols-3 gap-4 border-t border-[var(--border)] pt-6">
+            <div className="hero-stat">
+              <strong>{tHome('statFullStack')}</strong>
+              <span>{tHome('statFullStackText')}</span>
+            </div>
+            <div className="hero-stat">
+              <strong>{tHome('statArchitecture')}</strong>
+              <span>{tHome('statArchitectureText')}</span>
+            </div>
+            <div className="hero-stat">
+              <strong>{tHome('statQuality')}</strong>
+              <span>{tHome('statQualityText')}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-md md:max-w-[29rem]">
-          <div className="absolute -inset-8 rounded-[3rem] bg-zinc-400/10 blur-3xl dark:bg-zinc-400/[0.07]" />
+        <div className="relative mx-auto w-full max-w-md lg:max-w-[30rem]">
+          <div className="hero-orbit" aria-hidden="true" />
+          <div className="absolute -inset-8 rounded-[3rem] bg-[var(--accent-soft)] blur-3xl" />
           <div className="hero-photo">
             {profile?.avatarMediaId ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -141,12 +160,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
 
           <div className="hero-code">
+            <div className="mb-1 flex items-center gap-2 border-b border-white/10 pb-2">
+              <span className="h-2 w-2 rounded-full bg-rose-400" />
+              <span className="h-2 w-2 rounded-full bg-amber-300" />
+              <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            </div>
             <div>
               <span className="code-dim">01</span> <span>const engineer = {'{'}</span>
             </div>
             <div>
               <span className="code-dim">02</span>{' '}
-              <span>&nbsp;&nbsp;focus: &apos;software that lasts&apos;,</span>
+              <span>
+                &nbsp;&nbsp;focus:{' '}
+                <span className="code-accent">&apos;software that lasts&apos;</span>,
+              </span>
             </div>
             <div>
               <span className="code-dim">03</span>{' '}
@@ -163,7 +190,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      <section className="section-shell">
+      <section className="section-shell" data-ui="featured-work">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
           <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-end">
             <div>
@@ -171,9 +198,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <h2 className="section-heading mt-4">{tHome('projectsTitle')}</h2>
             </div>
             <div className="md:text-right">
-              <p className="text-sm leading-7 text-zinc-600 dark:text-zinc-400">
-                {tHome('projectsText')}
-              </p>
+              <p className="text-sm leading-7 text-[var(--muted)]">{tHome('projectsText')}</p>
               <Link href={`/${locale}/projetos`} className="section-link mt-4">
                 {tHome('seeAll')} <span>→</span>
               </Link>
@@ -189,6 +214,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   project={project}
                   detailsLabel={tCommon('details')}
                   lifecycleLabel={tProjects(`lifecycle.${project.lifecycle}`)}
+                  featuredLabel={tProjects('featured')}
                 />
               ))
             ) : (
@@ -202,13 +228,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <section className="section-shell">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
-          <div className="site-panel overflow-hidden p-8 md:p-12">
+          <div className="site-panel overflow-hidden p-8 md:p-12 lg:p-16">
             <div className="panel-glow" aria-hidden="true" />
             <div className="relative grid gap-8 md:grid-cols-[0.65fr_1.35fr] md:items-end">
-              <p className="eyebrow">01 / PHILOSOPHY</p>
+              <div>
+                <p className="eyebrow">01 / PHILOSOPHY</p>
+                <p
+                  className="mt-8 font-mono text-7xl font-black tracking-[-0.08em] text-[var(--accent-soft)] md:text-9xl"
+                  aria-hidden="true"
+                >
+                  01
+                </p>
+              </div>
               <div>
                 <h2 className="section-heading max-w-3xl">{tHome('aboutTitle')}</h2>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-zinc-600 dark:text-zinc-400">
+                <p className="mt-6 max-w-3xl text-base leading-8 text-[var(--muted)] md:text-lg">
                   {tHome('aboutText')}
                 </p>
               </div>
@@ -224,7 +258,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="section-heading">{tHome('articlesTitle')}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
                 {tHome('articlesText')}
               </p>
             </div>
@@ -271,7 +305,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="section-heading">{tHome('newsTitle')}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
                 {tHome('newsText')}
               </p>
             </div>
@@ -318,7 +352,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <div>
               <p className="eyebrow">SIGNAL / NO NOISE</p>
               <h2 className="section-heading mt-4">{tHome('newsletterTitle')}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
                 {tHome('newsletterText')}
               </p>
             </div>

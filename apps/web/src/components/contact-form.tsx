@@ -3,13 +3,9 @@
 import { FormEvent, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { SuccessModal } from './success-modal';
-import {
-  resetTurnstile,
-  TurnstileWidget,
-} from './turnstile-widget';
+import { resetTurnstile, TurnstileWidget } from './turnstile-widget';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
 interface Labels {
   name: string;
@@ -19,10 +15,7 @@ interface Labels {
   send: string;
 }
 
-const successModalCopy: Record<
-  Locale,
-  { eyebrow: string; title: string; message: string }
-> = {
+const successModalCopy: Record<Locale, { eyebrow: string; title: string; message: string }> = {
   'pt-BR': {
     eyebrow: 'MENSAGEM ENVIADA',
     title: 'Recebi sua mensagem.',
@@ -40,13 +33,7 @@ const successModalCopy: Record<
   },
 };
 
-export function ContactForm({
-  locale,
-  labels,
-}: {
-  locale: Locale;
-  labels: Labels;
-}) {
+export function ContactForm({ locale, labels }: { locale: Locale; labels: Labels }) {
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -69,9 +56,7 @@ export function ContactForm({
       subject: String(form.get('subject') ?? ''),
       message: String(form.get('message') ?? ''),
       website: String(form.get('website') ?? ''),
-      turnstileToken: String(
-        form.get('cf-turnstile-response') ?? '',
-      ),
+      turnstileToken: String(form.get('cf-turnstile-response') ?? ''),
       locale,
     };
 
@@ -85,16 +70,16 @@ export function ContactForm({
         body: JSON.stringify(payload),
       });
 
-      const body = (await response.json().catch(() => null)) as
-        | { message?: string | string[] }
-        | null;
+      const body = (await response.json().catch(() => null)) as {
+        message?: string | string[];
+      } | null;
 
       if (!response.ok) {
         const message = body?.message;
         throw new Error(
           Array.isArray(message)
             ? message.join(' ')
-            : message ?? 'Não foi possível enviar a mensagem.',
+            : (message ?? 'Não foi possível enviar a mensagem.'),
         );
       }
 
@@ -102,11 +87,7 @@ export function ContactForm({
       setShowSuccessModal(true);
     } catch (cause) {
       setError(true);
-      setFeedback(
-        cause instanceof Error
-          ? cause.message
-          : 'Não foi possível enviar a mensagem.',
-      );
+      setFeedback(cause instanceof Error ? cause.message : 'Não foi possível enviar a mensagem.');
     } finally {
       resetTurnstile();
       setLoading(false);
@@ -144,13 +125,7 @@ export function ContactForm({
 
         <label className="field-label">
           {labels.subject}
-          <input
-            name="subject"
-            required
-            minLength={2}
-            maxLength={200}
-            className="field-control"
-          />
+          <input name="subject" required minLength={2} maxLength={200} className="field-control" />
         </label>
 
         <label className="field-label">
@@ -178,11 +153,7 @@ export function ContactForm({
           </p>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary w-full sm:w-auto"
-        >
+        <button type="submit" disabled={loading} className="btn-primary w-full sm:w-auto">
           {loading ? '…' : labels.send}
           <span aria-hidden="true">↗</span>
         </button>

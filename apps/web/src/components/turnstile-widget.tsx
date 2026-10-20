@@ -21,11 +21,7 @@ export function TurnstileWidget() {
         src="https://challenges.cloudflare.com/turnstile/v0/api.js"
         strategy="afterInteractive"
       />
-      <div
-        className="cf-turnstile"
-        data-sitekey={siteKey}
-        data-theme="dark"
-      />
+      <div className="cf-turnstile" data-sitekey={siteKey} data-theme="dark" />
     </div>
   );
 }

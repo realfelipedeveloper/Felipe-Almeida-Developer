@@ -52,7 +52,7 @@ export default async function ArticleDetailPage({
   const body = htmlToPlainText(article.bodyHtml);
 
   return (
-    <main className="mx-auto max-w-4xl px-5 py-16 md:py-24">
+    <main className="mx-auto max-w-5xl px-5 py-16 md:py-24">
       <JsonLd
         data={{
           '@context': 'https://schema.org',
@@ -64,24 +64,24 @@ export default async function ArticleDetailPage({
           author: { '@type': 'Person', name: 'Felipe Almeida' },
         }}
       />
-      <Link href={`/${locale}/artigos`} className="text-sm font-bold text-slate-500">
+      <Link href={`/${locale}/artigos`} className="btn-ghost -ml-3 min-h-0 px-3 py-2">
         ← {t('back')}
       </Link>
       {article.publishedAt ? (
-        <p className="mt-8 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
+        <p className="eyebrow mt-10">
           {t('publishedAt', { date: formatDate(article.publishedAt, locale) ?? '' })}
         </p>
       ) : null}
-      <h1 className="mt-4 text-5xl font-black tracking-[-0.05em] text-slate-950 md:text-7xl dark:text-white">
-        {article.title}
-      </h1>
-      <p className="mt-6 text-xl leading-9 text-slate-600 dark:text-slate-300">{article.summary}</p>
+      <h1 className="page-hero-title mt-7 text-[clamp(3.5rem,8vw,7rem)]">{article.title}</h1>
+      <p className="mt-8 max-w-4xl text-xl leading-9 text-[var(--muted)] md:text-2xl">
+        {article.summary}
+      </p>
       {article.coverMediaId ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={mediaUrl(article.coverMediaId) ?? undefined}
           alt=""
-          className="mt-10 max-h-[32rem] w-full rounded-3xl object-cover"
+          className="mt-12 max-h-[38rem] w-full rounded-[2rem] border border-[var(--border)] object-cover shadow-[var(--shadow)]"
         />
       ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
@@ -90,11 +90,11 @@ export default async function ArticleDetailPage({
         ))}
       </div>
       {article.readingTimeMinutes ? (
-        <p className="mt-5 text-sm text-slate-500">
+        <p className="mt-5 font-mono text-xs text-[var(--subtle)]">
           {t('readingTime', { minutes: article.readingTimeMinutes })}
         </p>
       ) : null}
-      <article className="prose-safe mt-12 border-t border-slate-200 pt-10 text-lg text-slate-700 dark:border-slate-800 dark:text-slate-300">
+      <article className="prose-safe mx-auto mt-14 max-w-4xl border-t border-[var(--border)] pt-12 text-lg text-[var(--muted)] md:text-xl">
         {body}
       </article>
     </main>

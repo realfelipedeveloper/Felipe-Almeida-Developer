@@ -34,7 +34,21 @@
     "available": "Disponible para nuevos proyectos y oportunidades",
     "unavailable": "Agenda profesional actualmente no disponible"
   },
+  "aboutUi": {
+    "profileKicker": "Perfil profesional",
+    "principlesKicker": "Principios / Esencia",
+    "galleryKicker": "Archivo / Momentos",
+    "unavailableEyebrow": "Sobre mí / No disponible",
+    "unavailableTitle": "El perfil no se pudo cargar en este momento.",
+    "unavailableDescription": "Inténtalo de nuevo en unos instantes. No hay contenido personal alternativo fijado en esta página."
+  },
   "home": {
+    "statFullStack": "Full Stack",
+    "statFullStackText": "Web y APIs",
+    "statArchitecture": "Arquitectura",
+    "statArchitectureText": "Sistemas que evolucionan",
+    "statQuality": "Calidad",
+    "statQualityText": "Seguridad desde el inicio",
     "projectsEyebrow": "Trabajo en práctica",
     "projectsTitle": "Proyectos destacados",
     "projectsText": "Soluciones construidas con decisiones técnicas guiadas por el problema, no por la moda.",
@@ -111,7 +125,7 @@
   "contact": {
     "eyebrow": "Contacto",
     "title": "¿Tienes un sistema para construir, evolucionar o modernizar?",
-    "intro": "Usa los canales profesionales disponibles o encuentra el formulario preparado para la integración de mensajería de la próxima etapa.",
+    "intro": "Comparte el contexto de tu desafío. El mensaje sigue un flujo seguro y recibirás respuesta por los canales profesionales indicados.",
     "name": "Nombre",
     "email": "Correo electrónico",
     "subject": "Asunto",

@@ -27,11 +27,32 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="grid h-9 w-9 place-items-center rounded-full border border-zinc-300 bg-zinc-100/60 text-xs text-zinc-600 transition hover:-translate-y-0.5 dark:border-zinc-800 dark:bg-white/[0.025] dark:text-zinc-400"
+      className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--border-strong)] bg-[var(--panel-soft)] text-[var(--muted)] transition hover:-translate-y-0.5 hover:bg-[var(--accent-soft)] hover:text-[var(--text)]"
       aria-label={label}
       title={label}
     >
-      <span aria-hidden="true">{dark ? '◐' : '◑'}</span>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        {dark ? (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 3v2m0 14v2M3 12h2m14 0h2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42m0-12.72-1.42 1.42M7.06 16.94l-1.42 1.42M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
+          />
+        ) : (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M20.2 15.2A8.5 8.5 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"
+          />
+        )}
+      </svg>
     </button>
   );
 }

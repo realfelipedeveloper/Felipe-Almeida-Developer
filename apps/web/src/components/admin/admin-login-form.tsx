@@ -2,11 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  adminFetch,
-  AdminApiError,
-  type AdminIdentity,
-} from '@/lib/admin/admin-api';
+import { adminFetch, AdminApiError, type AdminIdentity } from '@/lib/admin/admin-api';
 import { AdminFeedbackModal, AdminModal } from './admin-modal';
 
 type FeedbackState = {
@@ -31,28 +27,19 @@ export function AdminLoginForm() {
     setFeedback(null);
 
     try {
-      const result = await adminFetch<{ admin: AdminIdentity }>(
-        '/api/admin/auth/login',
-        {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        },
-      );
+      const result = await adminFetch<{ admin: AdminIdentity }>('/api/admin/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
 
-      router.replace(
-        result.admin.mustChangePassword
-          ? '/admin/seguranca'
-          : '/admin',
-      );
+      router.replace(result.admin.mustChangePassword ? '/admin/seguranca' : '/admin');
       router.refresh();
     } catch (cause) {
       setFeedback({
         variant: 'error',
         title: 'Acesso não autorizado.',
         message:
-          cause instanceof AdminApiError
-            ? cause.message
-            : 'Não foi possível entrar no painel.',
+          cause instanceof AdminApiError ? cause.message : 'Não foi possível entrar no painel.',
       });
     } finally {
       setLoading(false);
@@ -70,13 +57,10 @@ export function AdminLoginForm() {
     setFeedback(null);
 
     try {
-      const result = await adminFetch<{ message: string }>(
-        '/api/admin/auth/forgot-password',
-        {
-          method: 'POST',
-          body: JSON.stringify({ email: recoveryEmail }),
-        },
-      );
+      const result = await adminFetch<{ message: string }>('/api/admin/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: recoveryEmail }),
+      });
 
       setRecoveryOpen(false);
       setFeedback({

@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { Locale } from '@/i18n/config';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
@@ -18,6 +21,7 @@ interface SiteHeaderProps {
 }
 
 export function SiteHeader({ locale, labels }: SiteHeaderProps) {
+  const pathname = usePathname();
   const links = [
     [labels.home, `/${locale}`],
     [labels.about, `/${locale}/sobre`],
@@ -28,24 +32,39 @@ export function SiteHeader({ locale, labels }: SiteHeaderProps) {
     [labels.newsletter, `/${locale}/newsletter`],
   ] as const;
 
+  function isCurrent(href: string) {
+    if (href === `/${locale}`) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
   return (
-    <header className="sticky top-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#09090a]/80">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3.5">
-        <Link href={`/${locale}`} className="group flex shrink-0 items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-300 bg-zinc-100 font-mono text-[10px] font-black text-zinc-700 transition group-hover:-rotate-3 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            &lt;/&gt;
+    <header className="site-header">
+      <div className="nav-shell">
+        <Link
+          href={`/${locale}`}
+          className="group flex shrink-0 items-center gap-3"
+          aria-label="Felipe.dev"
+        >
+          <span className="brand-mark" aria-hidden="true">
+            FA
           </span>
-          <span className="text-sm font-extrabold tracking-[-0.035em] text-zinc-950 dark:text-zinc-100">
-            FELIPE<span className="font-medium text-zinc-500">.DEV</span>
+          <span className="hidden sm:block">
+            <span className="block text-sm font-extrabold tracking-[-0.045em] text-[var(--text)]">
+              FELIPE<span className="font-medium text-[var(--subtle)]">.DEV</span>
+            </span>
+            <span className="mt-0.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--subtle)]">
+              Software engineer
+            </span>
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-100/60 p-1 text-xs font-semibold text-zinc-600 lg:flex dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-zinc-400">
+        <nav aria-label={labels.menu} className="hidden items-center gap-0.5 lg:flex">
           {links.slice(1).map(([label, href]) => (
             <Link
               key={href}
               href={href}
-              className="rounded-full px-3.5 py-2 transition hover:bg-white hover:text-zinc-950 dark:hover:bg-white/[0.07] dark:hover:text-white"
+              className="nav-link"
+              aria-current={isCurrent(href) ? 'page' : undefined}
             >
               {label}
             </Link>
@@ -56,18 +75,30 @@ export function SiteHeader({ locale, labels }: SiteHeaderProps) {
           <LanguageSwitcher locale={locale} />
           <ThemeToggle />
 
-          <details className="relative lg:hidden">
-            <summary className="grid h-9 cursor-pointer list-none place-items-center rounded-full border border-zinc-300 px-3 text-xs font-bold dark:border-zinc-800">
+          <details className="group/menu relative lg:hidden">
+            <summary className="flex h-10 list-none items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--panel-soft)] px-3 text-xs font-bold text-[var(--text)]">
+              <span className="grid gap-1" aria-hidden="true">
+                <span className="h-px w-3.5 bg-current" />
+                <span className="h-px w-3.5 bg-current" />
+              </span>
               {labels.menu}
             </summary>
-            <div className="site-panel absolute right-0 mt-3 w-56 p-2">
-              {links.map(([label, href]) => (
+            <div
+              role="menu"
+              aria-label={`${labels.menu} mobile`}
+              className="site-panel absolute right-0 mt-3 w-[min(19rem,calc(100vw-2rem))] p-2"
+            >
+              {links.map(([label, href], index) => (
                 <Link
                   key={href}
                   href={href}
-                  className="block rounded-xl px-3 py-2.5 text-sm text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                  aria-current={isCurrent(href) ? 'page' : undefined}
+                  className="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--text)]"
                 >
-                  {label}
+                  <span>{label}</span>
+                  <span className="font-mono text-[10px] text-[var(--subtle)]" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
                 </Link>
               ))}
             </div>

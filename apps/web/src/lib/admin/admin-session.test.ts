@@ -13,15 +13,11 @@ describe('validação da sessão administrativa', () => {
 
   it('não trata indisponibilidade da API como logout', () => {
     expect(
-      shouldRedirectToAdminLogin(
-        new AdminApiError('Serviço temporariamente indisponível.', 503),
-      ),
+      shouldRedirectToAdminLogin(new AdminApiError('Serviço temporariamente indisponível.', 503)),
     ).toBe(false);
   });
 
   it('não trata falha de rede como logout', () => {
-    expect(
-      shouldRedirectToAdminLogin(new TypeError('Failed to fetch')),
-    ).toBe(false);
+    expect(shouldRedirectToAdminLogin(new TypeError('Failed to fetch'))).toBe(false);
   });
 });
