@@ -34,7 +34,21 @@
     "available": "Available for new projects and opportunities",
     "unavailable": "Professional schedule currently unavailable"
   },
+  "aboutUi": {
+    "profileKicker": "Professional profile",
+    "principlesKicker": "Principles / Core",
+    "galleryKicker": "Archive / Moments",
+    "unavailableEyebrow": "About / Unavailable",
+    "unavailableTitle": "The profile could not be loaded right now.",
+    "unavailableDescription": "Please try again shortly. No alternative personal content is hardcoded on this page."
+  },
   "home": {
+    "statFullStack": "Full Stack",
+    "statFullStackText": "Web and APIs",
+    "statArchitecture": "Architecture",
+    "statArchitectureText": "Systems that evolve",
+    "statQuality": "Quality",
+    "statQualityText": "Security by design",
     "projectsEyebrow": "Work in practice",
     "projectsTitle": "Featured projects",
     "projectsText": "Solutions built with technical decisions driven by the problem, not by trends.",
@@ -111,7 +125,7 @@
   "contact": {
     "eyebrow": "Contact",
     "title": "Have a system to build, evolve or modernize?",
-    "intro": "Use the available professional channels or find the form ready for the messaging integration in the next stage.",
+    "intro": "Share the context behind your challenge. Your message follows a secure flow and you will hear back through the professional channels provided.",
     "name": "Name",
     "email": "Email",
     "subject": "Subject",

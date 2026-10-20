@@ -15,11 +15,7 @@ export default async function NewsletterConfirmPage({
 
   return (
     <main>
-      <NewsletterTokenAction
-        locale={locale}
-        token={token}
-        action="confirm"
-      />
+      <NewsletterTokenAction locale={locale} token={token} action="confirm" />
     </main>
   );
 }

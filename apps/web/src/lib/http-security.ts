@@ -3,9 +3,7 @@ export interface WebSecurityHeader {
   value: string;
 }
 
-export function getWebSecurityHeaders(
-  environment = process.env.NODE_ENV,
-): WebSecurityHeader[] {
+export function getWebSecurityHeaders(environment = process.env.NODE_ENV): WebSecurityHeader[] {
   const headers: WebSecurityHeader[] = [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'X-Frame-Options', value: 'DENY' },
@@ -15,8 +13,7 @@ export function getWebSecurityHeaders(
     },
     {
       key: 'Permissions-Policy',
-      value:
-        'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+      value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
     },
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
     { key: 'X-DNS-Prefetch-Control', value: 'off' },

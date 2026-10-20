@@ -13,9 +13,7 @@ import type {
 } from './types';
 
 const API_BASE_URL =
-  process.env.API_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:3333';
+  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
 function emptyPage<T>(page = 1, limit = 12): PaginatedResult<T> {
   return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
@@ -58,7 +56,9 @@ export async function getProjects(filters: ProjectFilters) {
 }
 
 export async function getProject(locale: Locale, slug: string) {
-  return apiGet<ProjectDetail>(`/api/projects/${encodeURIComponent(slug)}?${queryString({ locale })}`);
+  return apiGet<ProjectDetail>(
+    `/api/projects/${encodeURIComponent(slug)}?${queryString({ locale })}`,
+  );
 }
 
 export async function getArticles(filters: ContentFilters) {
@@ -72,7 +72,9 @@ export async function getArticles(filters: ContentFilters) {
 }
 
 export async function getArticle(locale: Locale, slug: string) {
-  return apiGet<ArticleDetail>(`/api/articles/${encodeURIComponent(slug)}?${queryString({ locale })}`);
+  return apiGet<ArticleDetail>(
+    `/api/articles/${encodeURIComponent(slug)}?${queryString({ locale })}`,
+  );
 }
 
 export async function getNews(filters: ContentFilters) {

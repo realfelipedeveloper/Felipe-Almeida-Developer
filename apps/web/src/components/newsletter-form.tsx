@@ -3,13 +3,9 @@
 import { FormEvent, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { SuccessModal } from './success-modal';
-import {
-  resetTurnstile,
-  TurnstileWidget,
-} from './turnstile-widget';
+import { resetTurnstile, TurnstileWidget } from './turnstile-widget';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
 const successModalCopy: Record<
   Locale,
@@ -59,50 +55,41 @@ export function NewsletterForm({
     const form = new FormData(target);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/newsletter/subscribe`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({
-            email: String(form.get('email') ?? ''),
-            website: String(form.get('website') ?? ''),
-            turnstileToken: String(
-              form.get('cf-turnstile-response') ?? '',
-            ),
-            locale,
-          }),
+      const response = await fetch(`${API_BASE_URL}/api/newsletter/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-      );
+        body: JSON.stringify({
+          email: String(form.get('email') ?? ''),
+          website: String(form.get('website') ?? ''),
+          turnstileToken: String(form.get('cf-turnstile-response') ?? ''),
+          locale,
+        }),
+      });
 
-      const body = (await response.json().catch(() => null)) as
-        | { message?: string | string[] }
-        | null;
+      const body = (await response.json().catch(() => null)) as {
+        message?: string | string[];
+      } | null;
 
       if (!response.ok) {
         const message = body?.message;
         throw new Error(
           Array.isArray(message)
             ? message.join(' ')
-            : message ?? 'Não foi possível concluir a inscrição.',
+            : (message ?? 'Não foi possível concluir a inscrição.'),
         );
       }
 
       setSuccessMessage(
-        typeof body?.message === 'string'
-          ? body.message
-          : modalCopy.fallbackMessage,
+        typeof body?.message === 'string' ? body.message : modalCopy.fallbackMessage,
       );
       target.reset();
     } catch (cause) {
       setError(true);
       setFeedback(
-        cause instanceof Error
-          ? cause.message
-          : 'Não foi possível concluir a inscrição.',
+        cause instanceof Error ? cause.message : 'Não foi possível concluir a inscrição.',
       );
     } finally {
       resetTurnstile();
@@ -124,11 +111,7 @@ export function NewsletterForm({
               autoComplete="email"
               className="field-control flex-1"
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary shrink-0"
-            >
+            <button type="submit" disabled={loading} className="btn-primary shrink-0">
               {loading ? '…' : submitLabel}
               <span aria-hidden="true">→</span>
             </button>

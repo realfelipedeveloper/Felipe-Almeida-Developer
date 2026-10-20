@@ -54,7 +54,7 @@ export default async function ProjectDetailPage({
   const demoUrl = safeExternalUrl(project.demoUrl);
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-16 md:py-24">
+    <main className="mx-auto max-w-6xl px-5 py-16 md:py-24">
       <JsonLd
         data={{
           '@context': 'https://schema.org',
@@ -70,11 +70,11 @@ export default async function ProjectDetailPage({
         }}
       />
 
-      <Link href={`/${locale}/projetos`} className="text-sm font-bold text-slate-500">
+      <Link href={`/${locale}/projetos`} className="btn-ghost -ml-3 min-h-0 px-3 py-2">
         ← {t('eyebrow')}
       </Link>
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <span className="rounded-full border border-slate-300 px-3 py-1 text-xs font-bold dark:border-slate-700">
+      <div className="mt-10 flex flex-wrap items-center gap-3">
+        <span className="rounded-full border border-[var(--border-strong)] bg-[var(--panel-soft)] px-3 py-1.5 text-xs font-bold text-[var(--muted)]">
           {t(`lifecycle.${project.lifecycle}`)}
         </span>
         {project.featured ? (
@@ -83,48 +83,38 @@ export default async function ProjectDetailPage({
           </span>
         ) : null}
       </div>
-      <h1 className="mt-5 text-5xl font-black tracking-[-0.05em] text-slate-950 md:text-7xl dark:text-white">
+      <h1 className="page-hero-title mt-7 max-w-5xl text-[clamp(3.5rem,8vw,7rem)]">
         {project.title}
       </h1>
-      <p className="mt-6 text-xl leading-9 text-slate-600 dark:text-slate-300">{project.summary}</p>
+      <p className="mt-8 max-w-4xl text-xl leading-9 text-[var(--muted)] md:text-2xl">
+        {project.summary}
+      </p>
 
       {project.coverMediaId ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={mediaUrl(project.coverMediaId) ?? undefined}
           alt=""
-          className="mt-10 max-h-[36rem] w-full rounded-3xl object-cover"
+          className="mt-12 max-h-[42rem] w-full rounded-[2rem] border border-[var(--border)] object-cover shadow-[var(--shadow)]"
         />
       ) : null}
 
       <div className="mt-8 flex flex-wrap gap-3">
         {repositoryUrl ? (
-          <a
-            href={repositoryUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
-          >
+          <a href={repositoryUrl} target="_blank" rel="noreferrer" className="btn-primary">
             {t('repository')} ↗
           </a>
         ) : null}
         {demoUrl ? (
-          <a
-            href={demoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold dark:border-slate-700"
-          >
+          <a href={demoUrl} target="_blank" rel="noreferrer" className="btn-secondary">
             {t('demo')} ↗
           </a>
         ) : null}
       </div>
 
-      <div className="mt-12 grid gap-8 border-y border-slate-200 py-8 md:grid-cols-2 dark:border-slate-800">
+      <div className="site-panel mt-12 grid gap-8 p-7 md:grid-cols-2 md:p-9">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">
-            {t('technologies')}
-          </p>
+          <p className="eyebrow">{t('technologies')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {project.technologies.map((item) => (
               <Tag key={item.slug}>{item.name}</Tag>
@@ -132,9 +122,7 @@ export default async function ProjectDetailPage({
           </div>
         </div>
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">
-            {t('tags')}
-          </p>
+          <p className="eyebrow">{t('tags')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {project.tags.map((item) => (
               <Tag key={item.slug}>{item.label}</Tag>
@@ -143,31 +131,40 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      <section className="prose-safe mt-12 text-lg text-slate-600 dark:text-slate-300">
+      <section className="prose-safe mx-auto mt-16 max-w-4xl text-lg text-[var(--muted)] md:text-xl">
         {project.description}
       </section>
 
       <div className="mt-12 grid gap-5">
         {project.challenges ? (
-          <section className="rounded-3xl border border-slate-200 p-6 dark:border-slate-800">
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('challenge')}</h2>
-            <p className="mt-4 whitespace-pre-wrap leading-8 text-slate-600 dark:text-slate-300">
+          <section className="site-panel p-7 md:p-9">
+            <p className="eyebrow">01</p>
+            <h2 className="mt-5 text-3xl font-bold tracking-[-0.045em] text-[var(--text)]">
+              {t('challenge')}
+            </h2>
+            <p className="mt-4 whitespace-pre-wrap leading-8 text-[var(--muted)]">
               {project.challenges}
             </p>
           </section>
         ) : null}
         {project.solution ? (
-          <section className="rounded-3xl border border-slate-200 p-6 dark:border-slate-800">
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('solution')}</h2>
-            <p className="mt-4 whitespace-pre-wrap leading-8 text-slate-600 dark:text-slate-300">
+          <section className="site-panel p-7 md:p-9">
+            <p className="eyebrow">02</p>
+            <h2 className="mt-5 text-3xl font-bold tracking-[-0.045em] text-[var(--text)]">
+              {t('solution')}
+            </h2>
+            <p className="mt-4 whitespace-pre-wrap leading-8 text-[var(--muted)]">
               {project.solution}
             </p>
           </section>
         ) : null}
         {project.results ? (
-          <section className="rounded-3xl border border-slate-200 p-6 dark:border-slate-800">
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('results')}</h2>
-            <p className="mt-4 whitespace-pre-wrap leading-8 text-slate-600 dark:text-slate-300">
+          <section className="site-panel p-7 md:p-9">
+            <p className="eyebrow">03</p>
+            <h2 className="mt-5 text-3xl font-bold tracking-[-0.045em] text-[var(--text)]">
+              {t('results')}
+            </h2>
+            <p className="mt-4 whitespace-pre-wrap leading-8 text-[var(--muted)]">
               {project.results}
             </p>
           </section>
@@ -176,7 +173,7 @@ export default async function ProjectDetailPage({
 
       {project.galleryMediaIds.length ? (
         <section className="mt-12">
-          <h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('gallery')}</h2>
+          <h2 className="section-heading text-[clamp(2rem,4vw,3.5rem)]">{t('gallery')}</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             {project.galleryMediaIds.map((mediaId) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -184,7 +181,7 @@ export default async function ProjectDetailPage({
                 key={mediaId}
                 src={mediaUrl(mediaId) ?? undefined}
                 alt=""
-                className="h-72 w-full rounded-2xl object-cover"
+                className="h-72 w-full rounded-2xl border border-[var(--border)] object-cover shadow-[var(--shadow-soft)]"
               />
             ))}
           </div>
@@ -192,7 +189,7 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {project.startedAt || project.endedAt ? (
-        <div className="mt-10 flex flex-wrap gap-6 text-sm text-slate-500 dark:text-slate-400">
+        <div className="mt-10 flex flex-wrap gap-6 border-t border-[var(--border)] pt-6 text-sm text-[var(--muted)]">
           {project.startedAt ? (
             <span>
               <strong>{t('started')}:</strong> {formatDate(project.startedAt, locale)}

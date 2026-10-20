@@ -15,11 +15,7 @@ export default async function NewsletterUnsubscribePage({
 
   return (
     <main>
-      <NewsletterTokenAction
-        locale={locale}
-        token={token}
-        action="unsubscribe"
-      />
+      <NewsletterTokenAction locale={locale} token={token} action="unsubscribe" />
     </main>
   );
 }

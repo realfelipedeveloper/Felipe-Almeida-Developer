@@ -54,18 +54,16 @@ export function PrivacyRequestForm({
           turnstileToken: String(form.get('cf-turnstile-response') ?? ''),
         }),
       });
-      const body = (await response.json().catch(() => null)) as
-        | { message?: string | string[] }
-        | null;
+      const body = (await response.json().catch(() => null)) as {
+        message?: string | string[];
+      } | null;
       if (!response.ok) {
         const message = body?.message;
         throw new Error(
-          Array.isArray(message) ? message.join(' ') : message ?? labels.errorFallback,
+          Array.isArray(message) ? message.join(' ') : (message ?? labels.errorFallback),
         );
       }
-      setSuccessMessage(
-        typeof body?.message === 'string' ? body.message : labels.successFallback,
-      );
+      setSuccessMessage(typeof body?.message === 'string' ? body.message : labels.successFallback);
       formElement.reset();
       setRequestType('EXPORT');
     } catch (error) {
@@ -79,7 +77,10 @@ export function PrivacyRequestForm({
   return (
     <>
       <section className="site-panel p-6 sm:p-8" aria-labelledby="privacy-request-title">
-        <h2 id="privacy-request-title" className="text-2xl font-black text-zinc-950 dark:text-white">
+        <h2
+          id="privacy-request-title"
+          className="text-2xl font-black text-zinc-950 dark:text-white"
+        >
           {labels.title}
         </h2>
         <p className="mt-3 max-w-3xl leading-7 text-zinc-600 dark:text-zinc-300">
@@ -102,11 +103,16 @@ export function PrivacyRequestForm({
           <fieldset>
             <legend className="field-label">{labels.type}</legend>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {([
-                ['EXPORT', labels.exportOption],
-                ['DELETE', labels.deleteOption],
-              ] as const).map(([value, label]) => (
-                <label key={value} className="site-panel flex cursor-pointer items-center gap-3 p-4">
+              {(
+                [
+                  ['EXPORT', labels.exportOption],
+                  ['DELETE', labels.deleteOption],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="site-panel flex cursor-pointer items-center gap-3 p-4"
+                >
                   <input
                     type="radio"
                     name="type"
@@ -132,7 +138,11 @@ export function PrivacyRequestForm({
           </label>
           <TurnstileWidget />
 
-          {feedback ? <p className="form-feedback is-error" role="alert">{feedback}</p> : null}
+          {feedback ? (
+            <p className="form-feedback is-error" role="alert">
+              {feedback}
+            </p>
+          ) : null}
           <button type="submit" disabled={loading} className="btn-primary w-fit">
             {loading ? labels.sending : labels.submit}
             <span aria-hidden="true">→</span>
@@ -151,4 +161,3 @@ export function PrivacyRequestForm({
     </>
   );
 }
-

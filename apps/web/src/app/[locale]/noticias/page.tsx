@@ -54,9 +54,9 @@ export default async function NewsPage({
       <section className="mx-auto max-w-7xl px-5 pb-20">
         <form
           action={`/${locale}/noticias`}
-          className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 md:flex-row md:items-end dark:border-slate-800 dark:bg-slate-900/60"
+          className="filter-panel flex flex-col gap-3 md:flex-row md:items-end"
         >
-          <label className="flex-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+          <label className="flex-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
             {t('filterTag')}
             <input
               name="tag"
@@ -65,16 +65,10 @@ export default async function NewsPage({
               className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal dark:border-slate-700"
             />
           </label>
-          <button
-            type="submit"
-            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
-          >
+          <button type="submit" className="btn-primary">
             {t('filterApply')}
           </button>
-          <a
-            href={`/${locale}/noticias`}
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-center text-sm font-bold dark:border-slate-700"
-          >
+          <a href={`/${locale}/noticias`} className="btn-secondary">
             {t('filterClear')}
           </a>
         </form>
