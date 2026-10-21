@@ -62,7 +62,7 @@ transições sutis entre páginas.
   administrativo, sem erro de console ou hidratação;
 - 15 testes E2E do web aprovados, incluindo axe nos três idiomas, viewport mobile,
   ausência de overflow, camada imersiva e consentimento de analytics;
-- 181 testes unitários e 16 testes E2E de API/worker aprovados;
+- 181 testes unitários e 30 testes E2E de API/worker aprovados;
 - cobertura global da API em 81,29%;
 - lint, typecheck e build aprovados, com 55 rotas web geradas;
 - nenhuma publicação ou alteração de produção realizada.
