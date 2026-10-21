@@ -57,7 +57,11 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         className="mx-auto grid max-w-7xl gap-6 px-5 pb-24 lg:grid-cols-[0.78fr_1.22fr]"
       >
         {profile.avatarMediaId ? (
-          <div className="site-panel relative min-h-[32rem] overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:max-h-[46rem]">
+          <div
+            className="site-panel relative min-h-[32rem] overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:max-h-[46rem]"
+            data-reveal
+            data-tilt
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={mediaUrl(profile.avatarMediaId) ?? undefined}
@@ -74,7 +78,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         ) : null}
 
         <div className="grid content-start gap-6">
-          <article className="site-panel overflow-hidden p-7 md:p-10 lg:p-12">
+          <article className="site-panel overflow-hidden p-7 md:p-10 lg:p-12" data-reveal>
             <div className="panel-glow" aria-hidden="true" />
             <div className="relative">
               <p className="eyebrow">{profile.headline}</p>
@@ -98,7 +102,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           </article>
 
           {profile.principles.length ? (
-            <div className="site-panel p-7 md:p-10">
+            <div className="site-panel p-7 md:p-10" data-reveal>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="eyebrow">{t('principlesKicker')}</p>
@@ -135,7 +139,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       {profile.gallery.length ? (
         <section className="section-shell">
           <div className="mx-auto max-w-7xl px-5 py-20 md:py-28">
-            <div className="grid gap-6 md:grid-cols-[0.8fr_1.2fr] md:items-end">
+            <div className="grid gap-6 md:grid-cols-[0.8fr_1.2fr] md:items-end" data-reveal>
               <div>
                 <p className="eyebrow">{t('galleryKicker')}</p>
                 <h2 className="section-heading mt-5">{profile.aboutGalleryTitle}</h2>
@@ -149,6 +153,8 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               {profile.gallery.map((item, index) => (
                 <figure
                   key={item.mediaId}
+                  data-reveal
+                  data-tilt
                   className={`gallery-tile ${
                     index % 7 === 0 ? 'col-span-2 row-span-2' : index % 5 === 0 ? 'row-span-2' : ''
                   }`}

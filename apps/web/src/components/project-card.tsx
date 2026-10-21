@@ -18,7 +18,7 @@ export function ProjectCard({
   featuredLabel: string;
 }) {
   return (
-    <article className="site-card group flex h-full flex-col p-5 md:p-6">
+    <article className="site-card group flex h-full flex-col p-5 md:p-6" data-reveal data-tilt>
       {project.coverMediaId ? (
         <div className="card-media -mx-5 -mt-5 mb-6 h-52 md:-mx-6 md:-mt-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}

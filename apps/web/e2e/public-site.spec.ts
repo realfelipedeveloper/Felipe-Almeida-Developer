@@ -109,6 +109,15 @@ test('apresenta a nova composição editorial sem overflow horizontal', async ({
   expect(hasHorizontalOverflow).toBe(false);
 });
 
+test('oferece uma camada visual imersiva com movimento progressivo', async ({ page }) => {
+  await page.goto('/pt-BR');
+
+  await expect(page.locator('[data-ui="experience-layer"]')).toBeAttached();
+  await expect(page.locator('[data-ui="ambient-scene"]')).toBeAttached();
+  expect(await page.locator('[data-reveal]').count()).toBeGreaterThanOrEqual(4);
+  expect(await page.locator('[data-tilt]').count()).toBeGreaterThanOrEqual(1);
+});
+
 test('organiza a página Sobre como narrativa editorial', async ({ page }) => {
   await page.goto('/pt-BR/sobre');
   await expect(page.locator('[data-ui="about-story"]')).toBeVisible();

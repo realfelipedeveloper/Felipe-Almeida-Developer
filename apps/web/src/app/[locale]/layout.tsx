@@ -4,6 +4,7 @@ import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { CookieConsent } from '@/components/cookie-consent';
 import { AnalyticsLoader } from '@/components/analytics-loader';
+import { ExperienceLayer } from '@/components/experience-layer';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { isLocale, locales, type Locale } from '@/i18n/config';
@@ -45,6 +46,7 @@ export default async function LocaleLayout({
     <html lang={locale} className="dark" suppressHydrationWarning>
       <body className="portfolio-shell antialiased" data-ui="portfolio-shell">
         <NextIntlClientProvider messages={messages}>
+          <ExperienceLayer />
           <SiteHeader
             locale={locale}
             labels={{

@@ -54,7 +54,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const summary = cleanSeedText(profile?.summary, tHero('fallbackSummary'));
 
   return (
-    <main className="overflow-hidden">
+    <main className="immersive-home overflow-hidden">
       <JsonLd
         data={{
           '@context': 'https://schema.org',
@@ -72,9 +72,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <section
         data-ui="home-hero"
-        className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-14 px-5 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:py-20"
+        className="home-hero-cinematic mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-14 px-5 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:py-20"
       >
-        <div className="relative z-10">
+        <div className="relative z-10" data-reveal>
           <p className="eyebrow">{tHero('eyebrow')}</p>
 
           <h1 className="display-title mt-7 max-w-4xl text-[clamp(3.7rem,9vw,7.6rem)]">
@@ -136,7 +136,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-md lg:max-w-[30rem]">
+        <div
+          className="hero-visual relative mx-auto w-full max-w-md lg:max-w-[30rem]"
+          data-reveal
+          data-tilt
+        >
           <div className="hero-orbit" aria-hidden="true" />
           <div className="absolute -inset-8 rounded-[3rem] bg-[var(--accent-soft)] blur-3xl" />
           <div className="hero-photo">
@@ -190,9 +194,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
+      <div className="kinetic-band" aria-hidden="true">
+        <div className="kinetic-track">
+          {[0, 1].map((group) => (
+            <div className="kinetic-group" key={group}>
+              <span>{headline}</span>
+              <i>✦</i>
+              <span>{fullName}</span>
+              <i>✦</i>
+              <span>{tHero('eyebrow')}</span>
+              <i>✦</i>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <section className="section-shell" data-ui="featured-work">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
-          <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-end">
+          <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-end" data-reveal>
             <div>
               <p className="eyebrow">{tHome('projectsEyebrow')}</p>
               <h2 className="section-heading mt-4">{tHome('projectsTitle')}</h2>
@@ -205,7 +224,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="grid-auto-fit mt-10 grid gap-5">
             {projects.data.length ? (
               projects.data.map((project) => (
                 <ProjectCard
@@ -228,7 +247,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <section className="section-shell">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
-          <div className="site-panel overflow-hidden p-8 md:p-12 lg:p-16">
+          <div
+            className="site-panel statement-panel overflow-hidden p-8 md:p-12 lg:p-16"
+            data-reveal
+            data-tilt
+          >
             <div className="panel-glow" aria-hidden="true" />
             <div className="relative grid gap-8 md:grid-cols-[0.65fr_1.35fr] md:items-end">
               <div>
@@ -253,21 +276,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <section className="section-shell">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
-          <p className="eyebrow">{tHome('articlesEyebrow')}</p>
+          <div data-reveal>
+            <p className="eyebrow">{tHome('articlesEyebrow')}</p>
 
-          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="section-heading">{tHome('articlesTitle')}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                {tHome('articlesText')}
-              </p>
+            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="section-heading">{tHome('articlesTitle')}</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
+                  {tHome('articlesText')}
+                </p>
+              </div>
+              <Link href={`/${locale}/artigos`} className="section-link">
+                {tHome('seeAll')} <span>→</span>
+              </Link>
             </div>
-            <Link href={`/${locale}/artigos`} className="section-link">
-              {tHome('seeAll')} <span>→</span>
-            </Link>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="grid-auto-fit mt-10 grid gap-5">
             {articles.data.length ? (
               articles.data.map((article) => (
                 <ContentCard
@@ -300,21 +325,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <section className="section-shell">
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
-          <p className="eyebrow">{tHome('newsEyebrow')}</p>
+          <div data-reveal>
+            <p className="eyebrow">{tHome('newsEyebrow')}</p>
 
-          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="section-heading">{tHome('newsTitle')}</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                {tHome('newsText')}
-              </p>
+            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="section-heading">{tHome('newsTitle')}</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
+                  {tHome('newsText')}
+                </p>
+              </div>
+              <Link href={`/${locale}/noticias`} className="section-link">
+                {tHome('seeAll')} <span>→</span>
+              </Link>
             </div>
-            <Link href={`/${locale}/noticias`} className="section-link">
-              {tHome('seeAll')} <span>→</span>
-            </Link>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="grid-auto-fit mt-10 grid gap-5">
             {news.data.length ? (
               news.data.map((item) => (
                 <ContentCard
@@ -346,7 +373,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-20">
-        <div className="site-panel relative overflow-hidden p-8 md:p-12">
+        <div
+          className="site-panel newsletter-signal relative overflow-hidden p-8 md:p-12"
+          data-reveal
+          data-tilt
+        >
           <div className="panel-glow" aria-hidden="true" />
           <div className="relative flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <div>
