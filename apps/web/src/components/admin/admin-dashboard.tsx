@@ -39,7 +39,7 @@ export function AdminDashboard() {
 
   return (
     <div>
-      <div className="max-w-4xl">
+      <div className="max-w-4xl" data-reveal>
         <p className="eyebrow">ADMIN / OVERVIEW</p>
         <h1 className="mt-5 text-5xl font-bold tracking-[-0.06em] md:text-6xl">
           Painel administrativo
@@ -50,7 +50,7 @@ export function AdminDashboard() {
       </div>
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value, index, description]) => (
-          <div key={label} className="site-panel group overflow-hidden p-6">
+          <div key={label} className="site-panel group overflow-hidden p-6" data-reveal data-tilt>
             <div className="flex items-start justify-between gap-4">
               <p className="text-sm font-semibold text-zinc-400">{label}</p>
               <span className="font-mono text-[10px] text-zinc-600">{index}</span>
@@ -61,7 +61,7 @@ export function AdminDashboard() {
           </div>
         ))}
       </div>
-      <section className="site-panel mt-10 overflow-hidden p-6 md:p-8">
+      <section className="site-panel mt-10 overflow-hidden p-6 md:p-8" data-reveal>
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="eyebrow">AUDIT LOG</p>

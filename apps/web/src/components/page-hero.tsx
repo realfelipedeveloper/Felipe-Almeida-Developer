@@ -8,7 +8,7 @@ export function PageHero({
   description: string;
 }) {
   return (
-    <section className="page-hero">
+    <section className="page-hero" data-reveal>
       <div className="relative z-10 mx-auto max-w-7xl px-5">
         <div className="max-w-6xl">
           <p className="eyebrow">{eyebrow}</p>

@@ -20,7 +20,7 @@ export function SiteFooter({
   rss: string;
 }) {
   return (
-    <footer className="section-shell mt-10 overflow-hidden">
+    <footer className="section-shell footer-cinematic mt-10 overflow-hidden" data-reveal>
       <div className="mx-auto max-w-7xl px-5 py-14 md:py-20">
         <div className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
           <div>
